@@ -1,0 +1,67 @@
+version: '3.9'
+
+services:
+  tenant-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: tenant-service
+    ports:
+      - "9001:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      SPRING_DATASOURCE_URL: jdbc:postgresql://tenant-db:5432/tenant-db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_DATA_REDIS_HOST: tenant-redis
+      SPRING_DATA_REDIS_PORT: 6379
+    depends_on:
+      - tenant-db
+      - tenant-redis
+    develop:
+      watch:
+        - action: sync+restart
+          path: ./src
+          target: /app/src
+        - action: sync+restart
+          path: ./pom.xml
+          target: /app/pom.xml
+        - action: rebuild
+          path: ./.mvn
+        - action: rebuild
+          path: ./mvnw
+        - action: rebuild
+          path: ./Dockerfile.dev
+    networks:
+      - notification-net
+
+  tenant-db:
+    image: postgres:16
+    container_name: tenant-db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: tenant-db
+    ports:
+      - "5500:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - notification-net
+
+  tenant-redis:
+    image: redis:7
+    container_name: tenant-redis
+    restart: always
+    ports:
+      - "6000:6379"
+    networks:
+      - notification-net
+
+networks:
+  notification-net:
+    external: true
+
+volumes:
+  pgdata:

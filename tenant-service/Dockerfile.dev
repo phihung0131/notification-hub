@@ -1,0 +1,23 @@
+# ===== STAGE: DEV ENVIRONMENT =====
+FROM maven:3.9.9-eclipse-temurin-21 AS dev
+
+WORKDIR /app
+
+# Copy file cấu hình Maven
+COPY pom.xml .
+COPY mvnw .
+COPY .mvn .mvn
+
+# Tải dependencies trước để cache build nhanh
+RUN ./mvnw dependency:go-offline -B
+
+COPY src ./src
+
+# Expose port cho Spring Boot
+EXPOSE 8080
+
+# Profile dev
+ENV SPRING_PROFILES_ACTIVE=dev
+
+# Dùng spring-boot:run (DevTools tự restart)
+ENTRYPOINT ["./mvnw", "spring-boot:run", "-Dspring-boot.run.fork=false"]

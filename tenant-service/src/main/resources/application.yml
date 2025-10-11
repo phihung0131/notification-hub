@@ -1,0 +1,40 @@
+spring:
+  application:
+    name: tenant-service
+  datasource:
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    properties:
+      hibernate.format_sql: true
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST}
+      port: ${SPRING_DATA_REDIS_PORT}
+  jackson:
+    time-zone: UTC
+    serialization:
+      WRITE_DATES_AS_TIMESTAMPS: false
+  cache:
+    type: redis
+
+server:
+  port: 8080
+  servlet:
+    context-path: /api/v1
+
+# Logging: đưa traceId/tenantId vào log level
+logging:
+  level:
+    root: INFO
+    org.example.tenantservice: DEBUG
+  pattern:
+    level: "%5p [%X{traceId:-} %X{tenantId:-}]"
+
+app:
+  jwtSecret: L3NlY3JldEtleUZvckF1dGhTZXJ2aWNlVGhhdElzVmVyeUxvbmdBbmRTZWN1cmUxMjM0NTY3ODkwMTIzNDU2Nzg5MA
+  jwtExpirationMs: 86400000 # 1 day
