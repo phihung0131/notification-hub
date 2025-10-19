@@ -28,7 +28,10 @@ public class Tenant {
     @Column(nullable = false)
     private String password;
 
+    @Builder.Default
     private Integer quotaLimit = 0;    // -1 unlimited
+
+    @Builder.Default
     private Integer quotaUsed = 0;     // cached snapshot (optional)
 
     @ManyToMany(fetch = FetchType.EAGER)

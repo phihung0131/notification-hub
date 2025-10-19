@@ -17,8 +17,8 @@ public class ApiKey {
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
 
-    @Column(unique = true, nullable = false)
-    private String keyHash;
+    @Column(name = "api_key_value", unique = true, nullable = false)
+    private String key;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "tenant_id", nullable = false)

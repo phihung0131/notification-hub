@@ -66,7 +66,7 @@ public class AuthService {
         List<ApiKey> allApiKeys = apiKeyRepository.findAll();
 
         for (ApiKey apiKey : allApiKeys) {
-            if (!apiKey.isRevoked() && passwordEncoder.matches(rawApiKey, apiKey.getKeyHash())) {
+            if (!apiKey.isRevoked() && passwordEncoder.matches(rawApiKey, apiKey.getKey())) {
                 // If API key is valid, return its permissions
                 return apiKey.getPermissions().stream()
                         .filter(p -> p.getType() == PermissionType.API)

@@ -11,7 +11,7 @@ import java.util.Set;
 @Setter
 public class ApiKeyResponse {
     public String id;
-    public String keyHash;
+    public String key;
     public Instant expiredAt;
     public boolean revoked;
     public Set<Permission> permissions;

@@ -33,7 +33,6 @@ public class ApiKeyService {
      * @param request the API key creation request
      * @return the created API key
      */
-    // TODO: Hash the API key before returning it to the user
     public ApiKey createApiKey(ApiKeyCreateRequest request) {
         CustomUserDetails user = authService.getCurrentUser();
         Tenant tenant = tenantRepository.findById(user.getId()).orElseThrow(() -> new BaseException(ApiErrorMessage.TENANT_NOT_FOUND));
@@ -50,7 +49,7 @@ public class ApiKeyService {
 
         newApiKey.setPermissions(permissions);
         newApiKey.setRevoked(false);
-        newApiKey.setKeyHash(generateApiKey());
+        newApiKey.setKey(generateApiKey());
         return apiKeyRepository.save(newApiKey);
     }
 
