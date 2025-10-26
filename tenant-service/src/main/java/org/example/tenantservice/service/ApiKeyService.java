@@ -11,6 +11,7 @@ import org.example.tenantservice.model.Tenant;
 import org.example.tenantservice.repository.ApiKeyRepository;
 import org.example.tenantservice.repository.PermissionRepository;
 import org.example.tenantservice.repository.TenantRepository;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 
 import java.security.SecureRandom;
@@ -66,7 +67,10 @@ public class ApiKeyService {
         }
 
         apiKey.setRevoked(true);
+
         apiKeyRepository.save(apiKey);
+
+        evictCache(apiKey);
     }
 
     /**
@@ -121,6 +125,8 @@ public class ApiKeyService {
             apiKey.setPermissions(permissions);
         }
 
+        evictCache(apiKey);
+
         return apiKeyRepository.save(apiKey);
     }
 
@@ -133,4 +139,13 @@ public class ApiKeyService {
         secureRandom.nextBytes(randomBytes);
         return Base64.getUrlEncoder().withoutPadding().encodeToString(randomBytes);
     }
+
+    /**
+     * Evict the cache entry for the given API key.
+     * @param apiKey the API key whose cache entry should be evicted
+     */
+    @CacheEvict(value = "apiKeyPermissions", key = "#apiKey.key")
+    public void evictCache(ApiKey apiKey) {
+    }
+
 }

@@ -19,7 +19,8 @@ public class ApiErrorMessage {
         TENANT_NOT_FOUND = new ApiErrorMessage(1000005, "Tenant not found.", HttpStatus.NOT_FOUND),
         UNAUTHORIZED = new ApiErrorMessage(1000006, "Unauthorized.", HttpStatus.UNAUTHORIZED),
         API_KEY_NOT_FOUND = new ApiErrorMessage(1000007, "API Key not found.", HttpStatus.NOT_FOUND),
-        FORBIDDEN = new ApiErrorMessage(1000008, "Forbidden.", HttpStatus.FORBIDDEN);
+        FORBIDDEN = new ApiErrorMessage(1000008, "Forbidden.", HttpStatus.FORBIDDEN),
+        API_KEY_REVOKED = new ApiErrorMessage(1000009, "API Key has been revoked.", HttpStatus.UNAUTHORIZED);
     protected final int code;
     protected final String message;
     protected final HttpStatus status;

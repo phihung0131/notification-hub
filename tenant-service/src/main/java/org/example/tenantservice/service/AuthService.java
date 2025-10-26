@@ -13,6 +13,7 @@ import org.example.tenantservice.model.Permission;
 import org.example.tenantservice.model.Tenant;
 import org.example.tenantservice.repository.ApiKeyRepository;
 import org.example.tenantservice.repository.TenantRepository;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -21,12 +22,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
-
-import static org.example.tenantservice.common.exception.ApiErrorMessage.EMAIL_NOT_AVAILABLE;
-import static org.example.tenantservice.common.exception.ApiErrorMessage.INVALID_API_KEY;
 
 @Service
 @RequiredArgsConstructor
@@ -61,22 +58,19 @@ public class AuthService {
      * @param rawApiKey the raw API key to validate
      * @return a set of permission names associated with the valid API key
      */
-    // TODO: Implement caching for API keys and permissions
+    @Cacheable(value = "apiKeyPermissions", key = "#rawApiKey")
     public Set<String> validateApiKeyAndGetPermissions(String rawApiKey) {
-        List<ApiKey> allApiKeys = apiKeyRepository.findAll();
+        ApiKey apiKey = apiKeyRepository.findByKey(rawApiKey).orElseThrow(() -> new BaseException(ApiErrorMessage.INVALID_API_KEY));
 
-        for (ApiKey apiKey : allApiKeys) {
-            if (!apiKey.isRevoked() && passwordEncoder.matches(rawApiKey, apiKey.getKey())) {
-                // If API key is valid, return its permissions
-                return apiKey.getPermissions().stream()
-                        .filter(p -> p.getType() == PermissionType.API)
-                        .map(Permission::getName)
-                        .collect(Collectors.toSet());
-            }
+        // If API key is valid, return its permissions
+        if (apiKey.isRevoked()) {
+            throw new BaseException(ApiErrorMessage.API_KEY_REVOKED);
         }
 
-        // Error if no valid API key found
-        throw new BaseException(INVALID_API_KEY);
+        return apiKey.getPermissions().stream()
+                .filter(p -> p.getType() == PermissionType.API)
+                .map(Permission::getName)
+                .collect(Collectors.toSet());
     }
 
     /**
@@ -86,7 +80,7 @@ public class AuthService {
      */
     public Tenant registerNewTenant(TenantCreateRequest tenantCreateRequest) {
         if (tenantRepository.findByEmail(tenantCreateRequest.getEmail()).isPresent()) {
-            throw new BaseException(EMAIL_NOT_AVAILABLE);
+            throw new BaseException(ApiErrorMessage.EMAIL_NOT_AVAILABLE);
         }
 
         Tenant tenant = Tenant.builder()

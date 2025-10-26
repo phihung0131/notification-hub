@@ -1,4 +1,4 @@
-package org.example.tenantservice.unit;
+package org.example.tenantservice.unit.service;
 
 import org.example.tenantservice.common.exception.ApiErrorMessage;
 import org.example.tenantservice.common.exception.BaseException;
@@ -29,9 +29,7 @@ import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-import java.util.Collections;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
@@ -132,11 +130,10 @@ class AuthServiceTest {
 
         ApiKey apiKey = new ApiKey();
         apiKey.setRevoked(false);
-        apiKey.setKey("hashed");
+        apiKey.setKey("raw-key");
         apiKey.setPermissions(Set.of(pApi));
 
-        when(apiKeyRepository.findAll()).thenReturn(List.of(apiKey));
-        when(passwordEncoder.matches(raw, "hashed")).thenReturn(true);
+        when(apiKeyRepository.findByKey(raw)).thenReturn(Optional.of(apiKey));
 
         Set<String> perms = authService.validateApiKeyAndGetPermissions(raw);
 
@@ -146,7 +143,7 @@ class AuthServiceTest {
 
     @Test
     void validateApiKeyAndGetPermissions_whenInvalid_thenThrow() {
-        when(apiKeyRepository.findAll()).thenReturn(Collections.emptyList());
+        when(apiKeyRepository.findByKey(any())).thenReturn(Optional.empty());
 
         BaseException ex = assertThrows(BaseException.class, () -> authService.validateApiKeyAndGetPermissions("nope"));
         assertEquals(ApiErrorMessage.INVALID_API_KEY.getCode(), ex.getCode());

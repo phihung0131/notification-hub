@@ -1,4 +1,4 @@
-package org.example.tenantservice.unit;
+package org.example.tenantservice.unit.service;
 
 import org.example.tenantservice.common.exception.ApiErrorMessage;
 import org.example.tenantservice.common.exception.BaseException;

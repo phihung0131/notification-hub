@@ -1,4 +1,4 @@
-package org.example.tenantservice.unit;
+package org.example.tenantservice.unit.service;
 
 import org.example.tenantservice.common.enums.PermissionType;
 import org.example.tenantservice.common.exception.ApiErrorMessage;
