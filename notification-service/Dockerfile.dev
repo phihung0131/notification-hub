@@ -1,0 +1,31 @@
+FROM maven:3.9.9-eclipse-temurin-21 AS dev
+
+WORKDIR /workspace
+
+# Copy parent POM first
+COPY pom.xml ./pom.xml
+
+# Install parent POM to local repository
+RUN mvn -q -B -N install
+
+# Copy proto-shared
+COPY proto-shared/pom.xml ./proto-shared/pom.xml
+COPY ./proto-shared/src ./proto-shared/src
+
+# Build and install proto-shared
+WORKDIR /workspace/proto-shared
+RUN mvn -q -B -DskipTests clean install
+
+# Copy notification-service
+COPY notification-service/pom.xml /workspace/notification-service/pom.xml
+
+# Now resolve notification-service dependencies
+WORKDIR /workspace/notification-service
+RUN mvn -q -B -DskipTests dependency:go-offline
+
+COPY ./notification-service/src ./src
+
+EXPOSE 8080
+ENV SPRING_PROFILES_ACTIVE=dev
+
+ENTRYPOINT ["mvn", "spring-boot:run", "-Dspring-boot.run.fork=false"]

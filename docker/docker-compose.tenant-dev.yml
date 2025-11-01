@@ -3,7 +3,7 @@ version: '3.9'
 services:
   tenant-service:
     build:
-      context: .
+      context: ../tenant-service
       dockerfile: Dockerfile.dev
     container_name: tenant-service
     ports:
@@ -21,17 +21,17 @@ services:
     develop:
       watch:
         - action: sync+restart
-          path: ./src
+          path: ../tenant-service/src
           target: /app/src
         - action: sync+restart
-          path: ./pom.xml
+          path: ../tenant-service/pom.xml
           target: /app/pom.xml
         - action: rebuild
-          path: ./.mvn
+          path: ../tenant-service/.mvn
         - action: rebuild
-          path: ./mvnw
+          path: ../tenant-service/mvnw
         - action: rebuild
-          path: ./Dockerfile.dev
+          path: ../tenant-service/Dockerfile.dev
     networks:
       - notification-net
 
@@ -44,9 +44,9 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: tenant-db
     ports:
-      - "5500:5432"
+      - "5501:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - tenant_pgdata:/var/lib/postgresql/data
     networks:
       - notification-net
 
@@ -55,7 +55,7 @@ services:
     container_name: tenant-redis
     restart: always
     ports:
-      - "6000:6379"
+      - "6001:6379"
     networks:
       - notification-net
 
@@ -64,4 +64,4 @@ networks:
     external: true
 
 volumes:
-  pgdata:
+  tenant_pgdata:
