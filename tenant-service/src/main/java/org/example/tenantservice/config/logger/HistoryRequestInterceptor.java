@@ -26,12 +26,6 @@ public class HistoryRequestInterceptor implements HandlerInterceptor {
      */
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
-        // Assign or retrieve traceId to track the request
-        String traceId = Optional.ofNullable(request.getHeader("X-Request-Id"))
-                .filter(id -> !id.isBlank())
-                .orElse(UUID.randomUUID().toString());
-        MDC.put("traceId", traceId);
-        request.setAttribute("traceId", traceId);
         request.setAttribute(START_TIME, Instant.now());
 
         String method = request.getMethod();
@@ -39,7 +33,7 @@ public class HistoryRequestInterceptor implements HandlerInterceptor {
         String query = Optional.ofNullable(request.getQueryString()).orElse("");
         String remoteAddr = request.getRemoteAddr();
 
-        log.info("[INCOMING] [{}] {}?{} from {} | traceId={}", method, path, query, remoteAddr, traceId);
+        log.info("[INCOMING] [{}] {}?{} from {}", method, path, query, remoteAddr);
         return true;
     }
 
@@ -55,18 +49,14 @@ public class HistoryRequestInterceptor implements HandlerInterceptor {
     ) {
         Instant start = (Instant) request.getAttribute(START_TIME);
         long duration = start != null ? Duration.between(start, Instant.now()).toMillis() : -1;
-        String traceId = (String) request.getAttribute("traceId");
         int status = response.getStatus();
 
         if (ex != null) {
-            log.error("[COMPLETED] [{}] {} | status={} | traceId={} | duration={}ms | ERROR={}",
-                    request.getMethod(), request.getRequestURI(), status, traceId, duration, ex.getMessage(), ex);
+            log.error("[COMPLETED] [{}] {} | status={} | duration={}ms | ERROR={}",
+                    request.getMethod(), request.getRequestURI(), status, duration, ex.getMessage(), ex);
         } else {
-            log.info("[COMPLETED] [{}] {} | status={} | traceId={} | duration={}ms",
-                    request.getMethod(), request.getRequestURI(), status, traceId, duration);
+            log.info("[COMPLETED] [{}] {} | status={} | duration={}ms",
+                    request.getMethod(), request.getRequestURI(), status, duration);
         }
-
-        // Clear MDC to prevent memory leaks
-        MDC.clear();
     }
 }

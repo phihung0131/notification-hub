@@ -1,69 +1,104 @@
 spring:
   application:
     name: notification-service
+
   datasource:
     url: ${SPRING_DATASOURCE_URL}
     username: ${SPRING_DATASOURCE_USERNAME}
     password: ${SPRING_DATASOURCE_PASSWORD}
+
   jpa:
     hibernate:
       ddl-auto: update
     open-in-view: false
     properties:
       hibernate.format_sql: true
+
   data:
     redis:
       host: ${SPRING_DATA_REDIS_HOST}
       port: ${SPRING_DATA_REDIS_PORT}
+
   jackson:
     time-zone: UTC
     serialization:
       WRITE_DATES_AS_TIMESTAMPS: false
+
   cache:
     type: redis
 
   kafka:
-    # Địa chỉ của Kafka broker, đọc từ biến môi trường
     bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS}
     producer:
-      # Định dạng của key và value khi gửi đi. Dùng JSON cho linh hoạt.
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
       properties:
-        # Thêm type info vào message để consumer biết cách giải mã JSON
         spring.json.add.type.headers: false
     consumer:
-      # Định dạng của key và value khi nhận về.
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
-      group-id: ${SPRING_KAFKA_CONSUMER_GROUP_ID} # Group ID cho các consumer
+      group-id: ${SPRING_KAFKA_CONSUMER_GROUP_ID}
       properties:
-        # Quan trọng: Cho phép consumer giải mã JSON thành các object khác nhau
         spring.json.trusted.packages: "org.example.notificationservice.dto.*"
-        # Tự động reset offset về đầu nếu không tìm thấy offset (khi consumer group mới)
       auto-offset-reset: earliest
 
 grpc:
   client:
-    # 'template-service' là tên định danh cho client. Bạn có thể đặt tên bất kỳ.
-    template-service:
-      # Địa chỉ của gRPC server (Template Service).
-      # Ví dụ: "static://template-service:9090". Sẽ đọc từ biến môi trường để linh hoạt.
-      address: ${GRPC_CLIENT_TEMPLATE_SERVICE_ADDRESS}
-      # Sử dụng plaintext cho giao tiếp nội bộ trong môi trường dev
+    tenant-service:
+      address: ${GRPC_CLIENT_TENANT_SERVICE_ADDRESS}
       negotiation-type: plaintext
       enable-keep-alive: true
+  server:
+    port: 9090
 
 server:
   port: 8080
   servlet:
     context-path: /api/v1/notifications
 
-# Logging: đưa traceId/tenantId vào log level
+# OpenTelemetry Configuration
+otel:
+  sdk:
+    disabled: false
+  exporter:
+    otlp:
+      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4317}
+  traces:
+    exporter: otlp
+  resource:
+    attributes:
+      service.name: notification-service
+      service.version: 1.0.0
+
+# Management & Actuator (riêng biệt)
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,info,prometheus
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+  tracing:
+    sampling:
+      probability: 1.0
+    baggage:
+      enabled: true
+      remote-fields:
+        - tenantId
+      correlation:
+        enabled: true
+        fields:
+          - tenantId
+
+# Logging Configuration (riêng biệt)
 logging:
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - [%X{traceId}-%X{spanId}] %msg%n"
   level:
     root: INFO
     org.example.notificationservice: DEBUG
-  pattern:
-    level: "%5p [%X{traceId:-} %X{tenantId:-}]"
-
+    org.springframework.web: DEBUG
+    io.opentelemetry: WARN
+    org.springframework.kafka: WARN

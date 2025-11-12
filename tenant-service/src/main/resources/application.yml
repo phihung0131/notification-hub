@@ -27,13 +27,28 @@ server:
   servlet:
     context-path: /api/v1/tenants
 
-# Logging: đưa traceId/tenantId vào log level
+grpc:
+  server:
+    port: 9090
+
+management:
+  tracing:
+    sampling:
+      probability: 1.0
+    baggage:
+      enabled: true
+      remote-fields:
+        - tenantId
+      correlation:
+        enabled: true
+        fields:
+          - tenantId
+
 logging:
-  level:
-    root: INFO
-    org.example.tenantservice: DEBUG
   pattern:
-    level: "%5p [%X{traceId:-} %X{tenantId:-}]"
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - [%X{traceId}-%X{spanId}] %msg%n"
+  level:
+    org.example.tenantservice: DEBUG
 
 app:
   jwtSecret: L3NlY3JldEtleUZvckF1dGhTZXJ2aWNlVGhhdElzVmVyeUxvbmdBbmRTZWN1cmUxMjM0NTY3ODkwMTIzNDU2Nzg5MA

@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package tenant;
+
+option java_multiple_files = true;
+option java_package = "org.example.proto.tenant";
+
+service TenantService {
+  rpc GetTenantQuota (GetTenantQuotaRequest) returns (GetTenantQuotaResponse);
+}
+
+message GetTenantQuotaRequest {
+  string tenantId = 1;
+  int32 quotaQuantity = 2;
+}
+
+message GetTenantQuotaResponse {
+  int32 quotaQuantity = 1;
+}

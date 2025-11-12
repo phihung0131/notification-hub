@@ -1,13 +1,12 @@
-version: '3.9'
-
 services:
   tenant-service:
     build:
-      context: ../tenant-service
-      dockerfile: Dockerfile.dev
+      context: ..
+      dockerfile: ./tenant-service/Dockerfile.dev
     container_name: tenant-service
     ports:
       - "9001:8080"
+      - "9051:9090"
     environment:
       SPRING_PROFILES_ACTIVE: dev
       SPRING_DATASOURCE_URL: jdbc:postgresql://tenant-db:5432/tenant-db
@@ -22,18 +21,18 @@ services:
       watch:
         - action: sync+restart
           path: ../tenant-service/src
-          target: /app/src
-        - action: sync+restart
+          target: /app/tenant-service/src
+          ignore:
+            - node_modules
+            - target
+        - action: rebuild
           path: ../tenant-service/pom.xml
-          target: /app/pom.xml
-        - action: rebuild
-          path: ../tenant-service/.mvn
-        - action: rebuild
-          path: ../tenant-service/mvnw
-        - action: rebuild
-          path: ../tenant-service/Dockerfile.dev
     networks:
       - notification-net
+    volumes:
+      - ~/.m2:/root/.m2
+      - ../tenant-service/src:/app/tenant-service/src
+      - ../tenant-service/pom.xml:/app/tenant-service/pom.xml
 
   tenant-db:
     image: postgres:16

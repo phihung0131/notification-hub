@@ -1,11 +1,12 @@
 package org.example.notificationservice.common.exception;
 
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.extern.slf4j.Slf4j;
 import org.example.notificationservice.common.baseclass.ApiResponse;
 import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.BadCredentialsException;
+//import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -16,6 +17,7 @@ import java.util.Map;
  * Global exception handler for the application
  */
 @RestControllerAdvice
+@Slf4j
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(BaseException.class)
@@ -52,19 +54,20 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(ApiResponse.fail(err));
     }
 
-    @ExceptionHandler(BadCredentialsException.class)
-    public ResponseEntity<ApiResponse<Void>> handleCredential(BadCredentialsException ex) {
-        var err = ApiError.builder()
-                .code(HttpStatus.UNAUTHORIZED.value())
-                .message("Bad credentials")
-                .details("Invalid email or password")
-                .build();
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(ApiResponse.fail(err));
-    }
+//    @ExceptionHandler(BadCredentialsException.class)
+//    public ResponseEntity<ApiResponse<Void>> handleCredential(BadCredentialsException ex) {
+//        var err = ApiError.builder()
+//                .code(HttpStatus.UNAUTHORIZED.value())
+//                .message("Bad credentials")
+//                .details("Invalid email or password")
+//                .build();
+//        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+//                .body(ApiResponse.fail(err));
+//    }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleOther(Exception ex, HttpServletRequest req) {
+        log.error("Unhandled exception at {}", ex.getMessage());
         var err = ApiError.builder()
                 .code(HttpStatus.INTERNAL_SERVER_ERROR.value())
                 .message("Unexpected error")

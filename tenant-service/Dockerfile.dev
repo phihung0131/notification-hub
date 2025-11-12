@@ -1,23 +1,29 @@
-# ===== STAGE: DEV ENVIRONMENT =====
 FROM maven:3.9.9-eclipse-temurin-21 AS dev
 
 WORKDIR /app
 
-# Copy file cấu hình Maven
-COPY pom.xml .
-COPY mvnw .
-COPY .mvn .mvn
+# Copy parent POM first
+COPY pom.xml ./pom.xml
 
-# Tải dependencies trước để cache build nhanh
-RUN ./mvnw dependency:go-offline -B
+# Install parent POM to local repository
+RUN mvn -q -B -N install
 
-COPY src ./src
+# Copy proto-shared
+COPY proto-shared/pom.xml ./proto-shared/pom.xml
+COPY ./proto-shared/src ./proto-shared/src
 
-# Expose port cho Spring Boot
+# Build and install proto-shared
+WORKDIR /app/proto-shared
+RUN mvn -q -B -DskipTests clean install
+
+# Copy notification-service POM ONLY
+COPY notification-service/pom.xml /app/tenant-service/pom.xml
+
+# Resolve dependencies
+WORKDIR /app/tenant-service
+RUN mvn -q -B -DskipTests dependency:go-offline
+
 EXPOSE 8080
-
-# Profile dev
 ENV SPRING_PROFILES_ACTIVE=dev
 
-# Dùng spring-boot:run (DevTools tự restart)
-ENTRYPOINT ["./mvnw", "spring-boot:run", "-Dspring-boot.run.fork=false"]
+ENTRYPOINT ["mvn", "spring-boot:run", "-Dspring-boot.run.fork=false"]

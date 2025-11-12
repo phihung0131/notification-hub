@@ -12,7 +12,8 @@ import org.springframework.http.HttpStatus;
 public class ApiErrorMessage {
 
     public static ApiErrorMessage
-        EMAIL_NOT_AVAILABLE = new ApiErrorMessage(1000001, "Email is already in use.", HttpStatus.NOT_FOUND);
+        CHANNEL_NOT_FOUND = new ApiErrorMessage(2000001, "Channel not found.", HttpStatus.NOT_FOUND),
+        QUOTA_EXCEEDED = new ApiErrorMessage(2000002, "Notification quota exceeded.", HttpStatus.FORBIDDEN);
     protected final int code;
     protected final String message;
     protected final HttpStatus status;

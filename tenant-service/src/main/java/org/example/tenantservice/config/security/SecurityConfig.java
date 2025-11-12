@@ -1,6 +1,8 @@
 package org.example.tenantservice.config.security;
 
 import lombok.RequiredArgsConstructor;
+import net.devh.boot.grpc.server.security.authentication.BasicGrpcAuthenticationReader;
+import net.devh.boot.grpc.server.security.authentication.GrpcAuthenticationReader;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -65,5 +67,13 @@ public class SecurityConfig {
         http.addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
+    }
+
+    /**
+     * Configure gRPC authentication reader to extract authentication from gRPC metadata.
+     */
+    @Bean
+    public GrpcAuthenticationReader grpcAuthenticationReader() {
+        return new BasicGrpcAuthenticationReader();
     }
 }

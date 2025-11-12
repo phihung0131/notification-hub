@@ -15,70 +15,32 @@ services:
       SPRING_DATA_REDIS_PORT: 6379
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       SPRING_KAFKA_CONSUMER_GROUP_ID: notification-consumer-group
-      GRPC_CLIENT_TEMPLATE_SERVICE_ADDRESS: static://template-service:9006
+      GRPC_CLIENT_TENANT_SERVICE_ADDRESS: static://tenant-service:9090
     depends_on:
       - notification-db
       - notification-redis
-      - kafka
+
+    # ===== WATCH MODE CONFIGURATION =====
     develop:
       watch:
         - action: sync+restart
           path: ../notification-service/src
-          target: /app/src
-        - action: sync+restart
+          target: /app/notification-service/src
+          ignore:
+            - node_modules
+            - target
+        - action: rebuild
           path: ../notification-service/pom.xml
-          target: /app/pom.xml
-    networks:
-      - notification-net
+
+    # ===== VOLUME MOUNTS =====
     volumes:
       - ~/.m2:/root/.m2
+      - ../notification-service/src:/app/notification-service/src
+      - ../notification-service/pom.xml:/app/notification-service/pom.xml
 
-  # ================== KAFKA (CONFLUENT - KRaft) ==================
-  kafka:
-    image: confluentinc/cp-kafka:7.7.1
-    container_name: kafka
-    restart: unless-stopped
-    ports:
-      - "9092:9092"   # Client listener
-      - "9093:9093"   # Controller listener (KRaft)
-    environment:
-      KAFKA_NODE_ID: 1
-      KAFKA_PROCESS_ROLES: broker,controller
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
-      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
-      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
-      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
-      KAFKA_LOG_RETENTION_HOURS: 168
-      KAFKA_LOG_SEGMENT_BYTES: 1073741824
-      KAFKA_LOG_RETENTION_CHECK_INTERVAL_MS: 300000
-      CLUSTER_ID: 'MkU3OEVBNTcwNTJENDM2Qk'
-    volumes:
-      - kafka_data:/var/lib/kafka/data
     networks:
       - notification-net
 
-  # ================== KAFDROP (UI quản lý Kafka) ==================
-  kafdrop:
-    image: obsidiandynamics/kafdrop:latest
-    container_name: kafdrop
-    restart: always
-    ports:
-      - "9000:9000"
-    environment:
-      KAFKA_BROKERCONNECT: "kafka:9092"
-      JVM_OPTS: "-Xms32M -Xmx64M"
-    depends_on:
-      - kafka
-    networks:
-      - notification-net
-
-  # ================== POSTGRES ==================
   notification-db:
     image: postgres:16
     container_name: notification-db
@@ -94,7 +56,6 @@ services:
     networks:
       - notification-net
 
-  # ================== REDIS ==================
   notification-redis:
     image: redis:7
     container_name: notification-redis
@@ -104,11 +65,9 @@ services:
     networks:
       - notification-net
 
-# ================== NETWORK & VOLUMES ==================
 networks:
   notification-net:
     external: true
 
 volumes:
   notification_pgdata:
-  kafka_data:
