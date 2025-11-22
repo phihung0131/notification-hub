@@ -29,18 +29,38 @@ services:
     networks:
       - notification-net
 
-  # ================== KAFDROP (UI quản lý Kafka) ==================
-  kafdrop:
-    image: obsidiandynamics/kafdrop:latest
-    container_name: kafdrop
-    restart: always
+  # ================== SCHEMA REGISTRY (THÊM MỚI) ==================
+  schema-registry:
+    image: confluentinc/cp-schema-registry:7.7.1
+    container_name: schema-registry
+    restart: unless-stopped
     ports:
-      - "9000:9000"
+      - "8081:8081"
     environment:
-      KAFKA_BROKERCONNECT: "kafka:9092"
-      JVM_OPTS: "-Xms32M -Xmx64M"
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: PLAINTEXT://kafka:9092
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
     depends_on:
       - kafka
+    networks:
+      - notification-net
+
+  # ================== KAFKA UI (CẬP NHẬT) ==================
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka-ui
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      KAFKA_CLUSTERS_0_SCHEMAREGISTRY: http://schema-registry:8081
+      KAFKA_CLUSTERS_0_METRICS_PORT: 9999
+      LOGGING_LEVEL_ROOT: INFO
+    depends_on:
+      - kafka
+      - schema-registry
     networks:
       - notification-net
 

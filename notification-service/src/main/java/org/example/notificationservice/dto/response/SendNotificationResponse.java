@@ -5,7 +5,7 @@ import org.example.notificationservice.common.enums.NotificationStatus;
 
 @Data
 public class SendNotificationResponse {
-    String notificationId;
+    String id;
     String tenantId;
     NotificationStatus notificationStatus;
 }

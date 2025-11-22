@@ -2,7 +2,6 @@ package org.example.notificationservice.grpc.client;
 
 import lombok.extern.slf4j.Slf4j;
 import net.devh.boot.grpc.client.inject.GrpcClient;
-import org.example.proto.template.GetTemplateResponse;
 import org.example.proto.tenant.GetTenantQuotaResponse;
 import org.example.proto.tenant.TenantServiceGrpc;
 import org.springframework.stereotype.Service;

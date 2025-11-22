@@ -14,8 +14,11 @@ services:
       SPRING_DATA_REDIS_HOST: notification-redis
       SPRING_DATA_REDIS_PORT: 6379
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      SPRING_KAFKA_PROPERTIES_SCHEMA_REGISTRY_URL: http://schema-registry:8081
       SPRING_KAFKA_CONSUMER_GROUP_ID: notification-consumer-group
       GRPC_CLIENT_TENANT_SERVICE_ADDRESS: static://tenant-service:9090
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://jaeger:4318/v1/traces
     depends_on:
       - notification-db
       - notification-redis

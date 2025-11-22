@@ -1,26 +1,48 @@
 spring:
   application:
     name: tenant-service
+
   datasource:
     url: ${SPRING_DATASOURCE_URL}
     username: ${SPRING_DATASOURCE_USERNAME}
     password: ${SPRING_DATASOURCE_PASSWORD}
+
   jpa:
     hibernate:
       ddl-auto: update
     open-in-view: false
     properties:
       hibernate.format_sql: true
+
   data:
     redis:
       host: ${SPRING_DATA_REDIS_HOST}
       port: ${SPRING_DATA_REDIS_PORT}
+
   jackson:
     time-zone: UTC
     serialization:
       WRITE_DATES_AS_TIMESTAMPS: false
+
   cache:
     type: redis
+
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS}
+    properties:
+      schema.registry.url: ${SPRING_KAFKA_PROPERTIES_SCHEMA_REGISTRY_URL}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: io.confluent.kafka.serializers.KafkaAvroSerializer
+      properties:
+        auto.register.schemas: true
+    consumer:
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: io.confluent.kafka.serializers.KafkaAvroDeserializer
+      group-id: ${SPRING_KAFKA_CONSUMER_GROUP_ID}
+      properties:
+        specific.avro.reader: true
+      auto-offset-reset: earliest
 
 server:
   port: 8080
@@ -31,8 +53,19 @@ grpc:
   server:
     port: 9090
 
+# Management & Actuator
 management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,info,prometheus
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
   tracing:
+    enabled: true
     sampling:
       probability: 1.0
     baggage:
@@ -44,11 +77,19 @@ management:
         fields:
           - tenantId
 
+  otlp:
+    tracing:
+      endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:http://jaeger:4318/v1/traces}
+
+# Logging Configuration
 logging:
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - [%X{traceId}-%X{spanId}] %msg%n"
   level:
+    root: INFO
     org.example.tenantservice: DEBUG
+    io.opentelemetry: WARN
+    org.springframework.kafka: WARN
 
 app:
   jwtSecret: L3NlY3JldEtleUZvckF1dGhTZXJ2aWNlVGhhdElzVmVyeUxvbmdBbmRTZWN1cmUxMjM0NTY3ODkwMTIzNDU2Nzg5MA

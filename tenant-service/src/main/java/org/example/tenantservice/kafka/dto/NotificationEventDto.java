@@ -1,15 +1,15 @@
-package org.example.notificationservice.kafka.dto;
+package org.example.tenantservice.kafka.dto;
 
 import lombok.Data;
-import org.example.notificationservice.common.enums.NotificationStatus;
-
+import org.example.tenantservice.common.enums.NotificationStatus;
 import java.time.Instant;
+import java.util.UUID;
 
 @Data
 public class NotificationEventDto {
-    private String notificationId;
+    private UUID id;
     private String tenantId;
-    private String channelCode;
+    private String channel;
     private String recipient;
     private String subject;
     private String content;

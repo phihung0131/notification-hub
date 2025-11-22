@@ -1,6 +1,5 @@
 package org.example.tenantservice.config;
 
-
 import net.devh.boot.grpc.client.channelfactory.GrpcChannelConfigurer;
 import net.devh.boot.grpc.server.serverfactory.GrpcServerConfigurer;
 import org.example.tenantservice.config.logger.GrpcClientLoggingInterceptor;

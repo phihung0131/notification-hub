@@ -51,8 +51,8 @@ public class TenantGrpcService extends TenantServiceGrpc.TenantServiceImplBase {
 
         responseObserver.onNext(response);
 
-        tenant.get().setQuotaLimit(tenant.get().getQuotaLimit() - quotaQuantity);
-        tenantRepository.save(tenant.get());
+//        tenant.get().setQuotaLimit(tenant.get().getQuotaLimit() - quotaQuantity);
+//        tenantRepository.save(tenant.get());
 
         responseObserver.onCompleted();
     }
