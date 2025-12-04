@@ -1,77 +1,58 @@
-# 🏗️ System Architecture & Data Flow
+# 🏗️ System Architecture & Data Flow (Core "Big Four")
 
-This document provides a detailed look at the overall architecture of the Notification Hub and describes the primary data flow for the core use case: sending a notification.
+This document provides a detailed look at the core "Big Four" microservice architecture and describes the primary data flow using Kafka.
 
 ## Architectural Diagram
 
-The system is composed of several decoupled microservices that communicate via REST, gRPC, and a Kafka message broker. This design ensures scalability, resilience, and maintainability.
+The system is composed of four decoupled microservices that communicate via REST and a Kafka message broker.
 
 ```
-[Client Apps (E-com, Fintech)]
+[Client App (Tenant)]
 |
 | REST (API Key)
 v
-[API Gateway]
+[Notification Orchestrator] --(1. notification.requested)--\> [KAFKA]
+(Validates, Generates messageId,
+Responds 202 PENDING immediately)
 |
-| REST/gRPC
-+--------------------------------+
-|                                |
-v                                v
-[Auth & Tenant Service] --gRPC--> [Notification Orchestrator]
-(manages quota, plan)               (validates, renders, publishes)
-|                                |
-| REST (upgrade event)           | Kafka (notification.requested event)
-v                                v
-[Payment & Billing Service]       [Delivery Service(s)]
-(handles Stripe/mock payments)      (consumers for Email/Telegram/...)
+\+-----------------------------------------------------------+
 |
-| Kafka (notification.result event)
+|   (2. Consumes notification.requested)
 v
-[Analytics & Logging Service]
-(provides status query API)
+[Delivery Service]
+(Sends to 3rd party, Retries, handles DLQ)
+|
+|   (3. Publishes result)
+v
+[KAFKA] --(4. notification.result)--\> [Analytics & Logging Service]
+|                                     (Consumes result, persists state,
+|                                      provides GET /messages API)
+|
+\+----(4. notification.result)--\> [Auth & Tenant Service]
+(Consumes DELIVERED status,
+securely debits quota via SAGA)
+
 ```
 
 ## 🔄 Core Data Flow: Sending a Notification
 
-This sequence outlines the step-by-step process that occurs when a client application sends a notification request.
+This sequence outlines the step-by-step asynchronous process.
 
-1.  **Client App -> API Gateway**: The client application initiates a request by sending a `POST /api/v1/notifications` request. The request must include a valid `Authorization: Bearer <API_KEY>` header.
+1.  **Client App -> Notification Orchestrator**:
+    * The client app sends a `POST /api/v1/notifications` request with its `API_KEY`.
+    * The **Orchestrator** validates the request, checks preliminary quota (e.g., in Redis), and generates a unique `messageId`.
+    * It publishes a `NotificationRequested` event (containing the `messageId`) to the `notification.requested` Kafka topic.
+    * It immediately returns `202 Accepted` to the client with the `messageId`. The API call is now finished and fast.
 
-2.  **API Gateway -> Auth & Tenant Service**:
-    *   The API Gateway intercepts the request and acts as a security checkpoint.
-    *   It makes an internal gRPC or REST call to the **Auth & Tenant Service** to validate the provided API Key.
-    *   This service checks if the key is valid, belongs to an active tenant, and if the tenant has not exceeded their monthly usage quota.
-    *   If authentication or authorization fails, the Gateway immediately rejects the request with an appropriate HTTP status code (e.g., `401 Unauthorized` or `429 Too Many Requests`).
+2.  **Kafka -> Delivery Service**:
+    * A `Delivery Service` instance consumes the event from the `notification.requested` topic.
+    * It attempts to send the notification via the specified channel (e.g., SMTP).
+    * **Retry/DLQ:** If it fails, it retries. If it fails permanently, it moves the message to the `notification.dlq` topic.
 
-3.  **API Gateway -> Notification Orchestrator**:
-    *   Upon successful validation, the API Gateway enriches the request by adding an `X-Tenant-Id` header. This prevents downstream services from needing to re-validate the token.
-    *   The Gateway then forwards the modified request to the **Notification Orchestrator**.
+3.  **Delivery Service -> Kafka**:
+    * After the final attempt (success or failure), the `Delivery Service` publishes a result event (`NotificationDelivered` or `NotificationFailed`) to the `notification.result` Kafka topic. This event includes the original `messageId`.
 
-4.  **Notification Orchestrator**:
-    *   This service receives the request and performs business logic validation (e.g., checks if the `channel` is supported, validates the request payload).
-    *   It calls the **Template Service** (if a template is specified) to render the final message content using the provided data.
-    *   It generates a unique `messageId` for tracking.
-    *   It then serializes the notification details into a message and publishes a `NotificationRequested` event to a dedicated Kafka topic.
-    *   Crucially, it immediately returns a response to the client with the `messageId` and a `PENDING` status, making the API call non-blocking and fast. `{"messageId": "msg-xyz123", "status": "PENDING"}`.
-
-5.  **Kafka -> Delivery Service(s)**:
-    *   One or more instances of the **Delivery Service** are subscribed to the `NotificationRequested` Kafka topic as part of a consumer group.
-    *   A consumer instance picks up the event from the topic.
-    *   Based on the `channel` field in the message (e.g., "email", "telegram"), the service routes the job to the appropriate adapter (e.g., `EmailAdapter`, `TelegramAdapter`).
-
-6.  **Delivery Service -> External Provider**:
-    *   The selected adapter makes the final API call to the third-party service provider (e.g., an SMTP server for email, the Telegram Bot API).
-    *   **Retry Mechanism**: If the delivery fails due to a transient error (e.g., network timeout, provider API is temporarily down), the service will attempt to retry the delivery using a predefined strategy (e.g., exponential backoff).
-    *   **Dead Letter Queue (DLQ)**: If the message consistently fails delivery after all retry attempts, it is moved to a `notifications.DLQ` topic for manual inspection and debugging.
-
-7.  **Delivery Service -> Kafka**:
-    *   After the final delivery attempt (either success or failure), the Delivery Service publishes a result event (`NotificationDelivered` or `NotificationFailed`) to a separate Kafka topic, such as `notifications.result`. This event includes the original `messageId`, `tenantId`, final status, and timestamps.
-
-8.  **Kafka -> Analytics & Logging Service**:
-    *   The **Analytics & Logging Service** consumes events from the `notifications.result` topic.
-    *   It persists the final state and the complete lifecycle of the message into its database (e.g., Elasticsearch or PostgreSQL) for long-term storage and querying.
-
-9.  **Client App -> API Gateway -> Analytics & Logging Service**:
-    *   At any point after step 4, the client application can use the `messageId` to query the status of their notification by making a `GET /api/v1/messages/{messageId}` request.
-    *   The API Gateway routes this request to the **Analytics & Logging Service**, which looks up the record in its database and returns the current status (`PENDING`, `DELIVERED`, or `FAILED`).
-
+4.  **Kafka -> Analytics & Auth (Saga Conclusion)**:
+    * The `notification.result` topic is consumed by **two** separate services:
+    * **Analytics & Logging Service**: It finds the original message by `messageId` and updates its status to `DELIVERED` or `FAILED`. This updates the data for the `GET /api/v1/messages` API.
+    * **Auth & Tenant Service**: It also consumes the event. If the status is `DELIVERED`, it performs the "real" quota debit (e.g., `UPDATE tenants SET quota_used = quota_used + 1`) as the final step of the Saga pattern. This ensures tenants are only charged for messages that are successfully sent.

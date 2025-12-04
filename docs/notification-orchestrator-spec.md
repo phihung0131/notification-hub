@@ -1,99 +1,50 @@
 # 🎶 Notification Orchestrator - Technical Specification
 
-The Notification Orchestrator is the core processing engine of the system. It receives validated requests from the API Gateway and is responsible for coordinating the steps required to prepare a notification for delivery. Its primary design principle is to be fast and asynchronous, offloading the time-consuming delivery tasks to background workers.
+The Notification Orchestrator is the high-performance API entry point. Its *only* job is to validate requests, check preliminary quota, and publish jobs to Kafka as fast as possible. **It does not perform any I/O-bound tasks** like database writes or external API calls.
 
-**Recommended Tech Stack:** Spring Boot (Java), Spring for Apache Kafka, Redis (for caching)
+**Recommended Tech Stack:** Spring Boot (Java), Spring for Apache Kafka
 
 ---
 
 ## Core Responsibilities
 
 ### 1. Receive and Validate Notification Request
-This is the entry point for the service's main workflow.
+* **API Endpoint (Internal):** `POST /api/v1/notifications` (Called from API Gateway).
+* **Expected Input:** `X-Tenant-Id` header, and a JSON body.
+* **Initial Validation:** Checks if `channel` is supported, `to` field is present, etc.
 
--   **API Endpoint (Internal):**
-    -   `POST /api/v1/notifications` (The path is the same as the public one, but this is an internal call from the Gateway).
--   **Expected Input:**
-    -   **Headers:** A valid `X-Tenant-Id` header, injected by the API Gateway.
-    -   **Body (JSON Payload):**
-        ```json
-        {
-          "channel": "email",
-          "to": "recipient@example.com",
-          "template": "user_welcome",
-          "data": {
-            "username": "Alex",
-            "signup_date": "2025-10-26"
-          }
-        }
-        ```
--   **Initial Validation:**
-    -   Performs business-level validation on the payload:
-        -   Is the `channel` field a supported value (e.g., "email", "telegram")?
-        -   Does the `to` field have a valid format for the specified channel?
-        -   Is the `data` object provided if a `template` is requested?
+### 2. Enforce Preliminary Quota (Fast Check)
+* **Workflow:**
+    1.  Makes a synchronous internal call to the **Auth & Tenant Service**: `GET /internal/tenants/{tenantId}/check-quota`.
+    2.  This is a fast, cache-based check.
+* **Action on Failure:** If quota is exceeded, immediately returns `429 Too Many Requests`.
 
-### 2. Enforce Usage Quota (Final Check)
-Before committing to sending the notification, it performs the definitive quota check. While the Gateway may perform a preliminary check, this service is responsible for the transactional "consumption" of a quota unit.
-
--   **Workflow:**
-    1.  Makes a synchronous internal API call to the **Auth & Tenant Service**.
-    2.  Endpoint: `POST /internal/tenants/{tenantId}/usage/increment`
-    3.  This call atomically increments the tenant's usage counter for the current month and returns whether the new count is within the plan's limit.
--   **Action on Failure:** If the Auth & Tenant Service indicates the quota has been exceeded, the Orchestrator immediately stops processing and returns an `HTTP 429 Too Many Requests` error to the client.
-
-### 3. Template Rendering
-The service fetches and renders the message content using the specified template and data.
-
--   **Workflow:**
-    1.  Makes a synchronous internal API call to the **Template Service**.
-    2.  Endpoint: `POST /internal/templates/render`
-    3.  **Request Payload to Template Service:**
-        ```json
-        {
-          "tenantId": "t-12345 (Passed from the header)",
-          "templateName": "user_welcome",
-          "data": {
-            "username": "Alex",
-            "signup_date": "2025-10-26"
-          }
-        }
-        ```
-    4.  **Response from Template Service:**
-        ```json
-        {
-          "renderedContent": "Hello Alex, welcome to our platform! You signed up on 2025-10-26."
-        }
-        ```
--   **Fallback:** If no `template` is specified in the initial request, the service assumes the request contains raw content and skips this step.
+### 3. Prepare Content
+* **No Template Service:** This service **does not** call a Template Service.
+* **Logic:** It either accepts raw `content` from the request body or performs simple string formatting (e.g., `String.format("Hello %s", data.get("name"))`). This must be extremely fast and in-memory.
 
 ### 4. Asynchronous Event Publishing
-This is the most critical step. After all validations and preparations are complete, the Orchestrator hands off the job to the delivery system by publishing an event to Kafka. This decouples the API response from the actual delivery process.
-
--   **Action:** Publishes a message to a specific Kafka topic.
--   **Kafka Topic:** `notification.requested`
--   **Kafka Message Payload (JSON):** The message contains all the information the Delivery Service needs to perform its job.
+* **Action:** Publishes a message to the `notification.requested` Kafka topic.
+* **Message ID:** It **generates a unique `messageId` (UUID)**. This ID is the "Correlation ID" for the entire lifecycle of the message.
+* **Kafka Message Payload (JSON):**
     ```json
     {
       "messageId": "msg-a4b1c2d3-e4f5-4a6b-8c7d-9e8f7a6b5c4d",
       "tenantId": "t-12345",
       "channel": "email",
       "recipient": "recipient@example.com",
-      "renderedContent": "Hello Alex, welcome to our platform! You signed up on 2025-10-26.",
-      "timestamp": "2025-10-26T15:30:00Z"
+      "renderedContent": "Hello Alex",
+      "timestamp": "..."
     }
     ```
--   **Idempotency:** The `messageId` is a unique UUID generated by the Orchestrator. This ID will be used throughout the system to track the message's lifecycle.
 
 ### 5. Immediate Client Response
-As soon as the message is successfully published to the Kafka topic, the Orchestrator's job is done. It immediately sends a response back to the API Gateway (and thus to the client).
-
--   **HTTP Status:** `202 Accepted`
--   **Response Body (JSON):**
+* As soon as the message is published to Kafka (an in-memory buffer), the service responds.
+* **HTTP Status:** `202 Accepted`
+* **Response Body (JSON):**
     ```json
     {
       "messageId": "msg-a4b1c2d3-e4f5-4a6b-8c7d-9e8f7a6b5c4d",
       "status": "PENDING"
     }
     ```
--   This fast response provides a great user experience, as the client does not have to wait for the potentially slow process of third-party API communication.

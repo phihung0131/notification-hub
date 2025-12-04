@@ -29,7 +29,7 @@ services:
     networks:
       - notification-net
 
-  # ================== SCHEMA REGISTRY (THÊM MỚI) ==================
+  # ================== SCHEMA REGISTRY ==================
   schema-registry:
     image: confluentinc/cp-schema-registry:7.7.1
     container_name: schema-registry
@@ -45,7 +45,7 @@ services:
     networks:
       - notification-net
 
-  # ================== KAFKA UI (CẬP NHẬT) ==================
+  # ================== KAFKA UI ==================
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
     container_name: kafka-ui

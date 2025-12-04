@@ -58,33 +58,20 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,metrics,info,prometheus
+        include: health,metrics,prometheus,info,env
+
   metrics:
-    export:
-      prometheus:
-        enabled: true
-
-  tracing:
-    enabled: true
-    sampling:
-      probability: 1.0
-    baggage:
-      enabled: true
-      remote-fields:
-        - tenantId
-      correlation:
-        enabled: true
-        fields:
-          - tenantId
-
-  otlp:
-    tracing:
-      endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:http://jaeger:4318/v1/traces}
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+    tags:
+      application: ${spring.application.name}
+      environment: development
 
 # Logging Configuration
 logging:
-  pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - [%X{traceId}-%X{spanId}] %msg%n"
+#  pattern:
+#    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - [%X{traceId}-%X{spanId}] %msg%n"
   level:
     root: INFO
     org.example.tenantservice: DEBUG

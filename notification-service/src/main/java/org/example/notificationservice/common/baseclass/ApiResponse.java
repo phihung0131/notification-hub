@@ -1,5 +1,7 @@
 package org.example.notificationservice.common.baseclass;
 
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.SpanContext;
 import lombok.*;
 import org.example.notificationservice.common.exception.ApiError;
 
@@ -23,21 +25,25 @@ public class ApiResponse<T> {
     private Instant ts;
 
     public static <T> ApiResponse<T> ok(T data) {
+        Span currentSpan = Span.current();
+        SpanContext spanContext = currentSpan.getSpanContext();
         return ApiResponse.<T>builder()
                 .success(true)
                 .data(data)
-                .traceId(TraceIdHolder.getTraceId())
-                .spanId(TraceIdHolder.getSpanId())
+                .traceId(spanContext.getTraceId())
+                .spanId(spanContext.getSpanId())
                 .ts(Instant.now())
                 .build();
     }
 
     public static <T> ApiResponse<T> fail(ApiError err) {
+        Span currentSpan = Span.current();
+        SpanContext spanContext = currentSpan.getSpanContext();
         return ApiResponse.<T>builder()
                 .success(false)
                 .error(err)
-                .traceId(TraceIdHolder.getTraceId())
-                .spanId(TraceIdHolder.getSpanId())
+                .traceId(spanContext.getTraceId())
+                .spanId(spanContext.getSpanId())
                 .ts(Instant.now())
                 .build();
     }

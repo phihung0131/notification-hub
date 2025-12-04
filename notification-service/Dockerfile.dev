@@ -21,9 +21,10 @@ COPY notification-service/pom.xml /app/notification-service/pom.xml
 
 # Resolve dependencies
 WORKDIR /app/notification-service
-RUN mvn -q -B -DskipTests dependency:go-offline
+# RUN mvn -q -B -DskipTests dependency:go-offline
 
-EXPOSE 8080
-ENV SPRING_PROFILES_ACTIVE=dev
+EXPOSE 8080 9090
 
-CMD ["mvn", "spring-boot:run", "-Dspring-boot.run.fork=false"]
+ENTRYPOINT ["mvn", "spring-boot:run", \
+            "-Dspring-boot.run.fork=false", \
+            "-Dspring-boot.run.jvmArguments=-javaagent:/otel-agent.jar"]

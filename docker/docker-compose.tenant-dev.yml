@@ -17,8 +17,13 @@ services:
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       SPRING_KAFKA_PROPERTIES_SCHEMA_REGISTRY_URL: http://schema-registry:8081
       SPRING_KAFKA_CONSUMER_GROUP_ID: tenant-consumer-group
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
-      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://jaeger:4318/v1/traces
+      OTEL_SERVICE_NAME: tenant-service
+      OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_TRACES_EXPORTER: otlp
+      OTEL_METRICS_EXPORTER: none
+      OTEL_LOGS_EXPORTER: none
+      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=dev
     depends_on:
       - tenant-db
       - tenant-redis
@@ -38,6 +43,7 @@ services:
       - ~/.m2:/root/.m2
       - ../tenant-service/src:/app/tenant-service/src
       - ../tenant-service/pom.xml:/app/tenant-service/pom.xml
+      - ../agents/opentelemetry-javaagent.jar:/otel-agent.jar:ro
 
   tenant-db:
     image: postgres:16

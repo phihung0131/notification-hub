@@ -1,14 +1,14 @@
-# Notification Hub – A SaaS Multi-Channel Messaging Platform
+# 📡 Notification Hub – A SaaS Multi-Channel Messaging Platform
 
 This project is a high-performance, scalable SaaS platform designed to empower client applications (tenants) to send multi-channel notifications (Email, Telegram, etc.) through a single, unified, asynchronous API.
 
-## Core Objectives
+## 🎯 Core Objectives
 
 - **Multi-tenancy**: The system is built to support multiple tenants on a shared infrastructure, ensuring complete data and quota isolation.
 - **Scalability & Reliability**: Engineered for high throughput using a **Kafka-based asynchronous architecture**. It incorporates robust mechanisms like automated retries and Dead Letter Queues (DLQ) to guarantee message delivery.
 - **Observability**: Provides end-to-end tracking for every message, allowing tenants to query the status (`PENDING`, `DELIVERED`, `FAILED`) at any time.
 
-## High-Level Architecture (Core "Big Four")
+## 🏗️ High-Level Architecture (Core "Big Four")
 
 The system is based on a "Core Four" microservice architecture, promoting separation of concerns, independent scaling, and resilience.
 
@@ -19,7 +19,7 @@ The system is based on a "Core Four" microservice architecture, promoting separa
 
 ![System Architecture Diagram](https://i.imgur.com/your-placeholder-diagram.png)
 
-## Getting Started & Development Plan
+## 🚀 Getting Started & Development Plan
 
 To understand the project in depth, please refer to the detailed specification documents for each service.
 

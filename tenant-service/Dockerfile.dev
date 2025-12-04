@@ -16,14 +16,15 @@ COPY ./proto-shared/src ./proto-shared/src
 WORKDIR /app/proto-shared
 RUN mvn -q -B -DskipTests clean install
 
-# Copy notification-service POM ONLY
-COPY notification-service/pom.xml /app/tenant-service/pom.xml
+# Copy tenant-service POM ONLY
+COPY tenant-service/pom.xml /app/tenant-service/pom.xml
 
 # Resolve dependencies
 WORKDIR /app/tenant-service
-RUN mvn -q -B -DskipTests dependency:go-offline
+# RUN mvn -q -B -DskipTests dependency:go-offline
 
-EXPOSE 8080
-ENV SPRING_PROFILES_ACTIVE=dev
+EXPOSE 8080 9090
 
-ENTRYPOINT ["mvn", "spring-boot:run", "-Dspring-boot.run.fork=false"]
+ENTRYPOINT ["mvn", "spring-boot:run", \
+            "-Dspring-boot.run.fork=false", \
+            "-Dspring-boot.run.jvmArguments=-javaagent:/otel-agent.jar"]

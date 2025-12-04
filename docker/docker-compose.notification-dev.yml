@@ -17,8 +17,13 @@ services:
       SPRING_KAFKA_PROPERTIES_SCHEMA_REGISTRY_URL: http://schema-registry:8081
       SPRING_KAFKA_CONSUMER_GROUP_ID: notification-consumer-group
       GRPC_CLIENT_TENANT_SERVICE_ADDRESS: static://tenant-service:9090
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
-      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://jaeger:4318/v1/traces
+      OTEL_SERVICE_NAME: notification-service
+      OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_TRACES_EXPORTER: otlp
+      OTEL_METRICS_EXPORTER: none
+      OTEL_LOGS_EXPORTER: none
+      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=dev
     depends_on:
       - notification-db
       - notification-redis
@@ -40,6 +45,7 @@ services:
       - ~/.m2:/root/.m2
       - ../notification-service/src:/app/notification-service/src
       - ../notification-service/pom.xml:/app/notification-service/pom.xml
+      - ../agents/opentelemetry-javaagent.jar:/otel-agent.jar:ro
 
     networks:
       - notification-net

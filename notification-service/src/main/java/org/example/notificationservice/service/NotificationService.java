@@ -47,7 +47,7 @@ public class NotificationService {
         response.setTenantId(eventDto.getTenantId());
         response.setNotificationStatus(NotificationStatus.PENDING);
 
-        return null;
+        return response;
     }
 
     public Integer getTenantQuota(@NotBlank String tenantId) {
