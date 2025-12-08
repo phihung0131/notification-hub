@@ -23,8 +23,8 @@ COPY tenant-service/pom.xml /app/tenant-service/pom.xml
 WORKDIR /app/tenant-service
 # RUN mvn -q -B -DskipTests dependency:go-offline
 
-EXPOSE 8080 9090
+EXPOSE 8080 9090 5005
 
 ENTRYPOINT ["mvn", "spring-boot:run", \
             "-Dspring-boot.run.fork=false", \
-            "-Dspring-boot.run.jvmArguments=-javaagent:/otel-agent.jar"]
+            "-Dspring-boot.run.jvmArguments=-javaagent:/otel-agent.jar -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005"]

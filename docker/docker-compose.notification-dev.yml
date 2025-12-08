@@ -5,7 +5,8 @@ services:
       dockerfile: ./notification-service/Dockerfile.dev
     container_name: notification-service
     ports:
-      - "9002:8080"
+      - "9002:8080" # Expose application port
+      - "5002:5005" # Expose debug port
     environment:
       SPRING_PROFILES_ACTIVE: dev
       SPRING_DATASOURCE_URL: jdbc:postgresql://notification-db:5432/notification_db
