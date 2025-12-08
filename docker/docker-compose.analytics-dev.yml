@@ -1,0 +1,83 @@
+services:
+  analytics-service:
+    build:
+      context: ..
+      dockerfile: ./analytics-service/Dockerfile.dev
+    container_name: analytics-service
+    ports:
+      - "9004:8080" # Expose application port
+      - "5004:5005" # Expose debug port
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      SPRING_DATASOURCE_URL: jdbc:postgresql://analytics-db:5432/analytics_db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_DATA_REDIS_HOST: analytics-redis
+      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      SPRING_KAFKA_PROPERTIES_SCHEMA_REGISTRY_URL: http://schema-registry:8081
+      SPRING_KAFKA_CONSUMER_GROUP_ID: analytics-consumer-group
+      GRPC_CLIENT_TENANT_SERVICE_ADDRESS: static://tenant-service:9090
+      OTEL_SERVICE_NAME: analytics-service
+      OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_TRACES_EXPORTER: otlp
+      OTEL_METRICS_EXPORTER: none
+      OTEL_LOGS_EXPORTER: none
+      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=dev
+    depends_on:
+      - analytics-db
+      - analytics-redis
+
+    # ===== WATCH MODE CONFIGURATION =====
+    develop:
+      watch:
+        - action: sync+restart
+          path: ../analytics-service/src
+          target: /app/analytics-service/src
+          ignore:
+            - node_modules
+            - target
+        - action: rebuild
+          path: ../analytics-service/pom.xml
+
+    # ===== VOLUME MOUNTS =====
+    volumes:
+      - ~/.m2:/root/.m2
+      - ../analytics-service/src:/app/analytics-service/src
+      - ../analytics-service/pom.xml:/app/analytics-service/pom.xml
+      - ../agents/opentelemetry-javaagent.jar:/otel-agent.jar:ro
+
+    networks:
+      - notification-net
+
+  analytics-db:
+    image: postgres:16
+    container_name: analytics-db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: analytics_db
+    ports:
+      - "5504:5432"
+    volumes:
+      - analytics_pgdata:/var/lib/postgresql/data
+    networks:
+      - notification-net
+
+  analytics-redis:
+    image: redis:7
+    container_name: analytics-redis
+    restart: always
+    ports:
+      - "6004:6379"
+    networks:
+      - notification-net
+
+networks:
+  notification-net:
+    external: true
+
+volumes:
+  analytics_pgdata:

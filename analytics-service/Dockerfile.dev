@@ -1,0 +1,30 @@
+FROM maven:3.9.9-eclipse-temurin-21 AS dev
+
+WORKDIR /app
+
+# Copy parent POM first
+COPY pom.xml ./pom.xml
+
+# Install parent POM to local repository
+RUN mvn -q -B -N install
+
+# Copy proto-shared
+COPY proto-shared/pom.xml ./proto-shared/pom.xml
+COPY ./proto-shared/src ./proto-shared/src
+
+# Build and install proto-shared
+WORKDIR /app/proto-shared
+RUN mvn -q -B -DskipTests clean install
+
+# Copy analytics-service POM ONLY
+COPY analytics-service/pom.xml /app/analytics-service/pom.xml
+
+# Resolve dependencies
+WORKDIR /app/analytics-service
+# RUN mvn -q -B -DskipTests dependency:go-offline
+
+EXPOSE 8080 9090 5005
+
+ENTRYPOINT ["mvn", "spring-boot:run", \
+            "-Dspring-boot.run.fork=false", \
+            "-Dspring-boot.run.jvmArguments=-javaagent:/otel-agent.jar -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005"]

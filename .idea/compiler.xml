@@ -7,8 +7,8 @@
         <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
-        <module name="delivery-service" />
         <module name="analytics-service" />
+        <module name="delivery-service" />
         <module name="proto-shared" />
         <module name="notification-service" />
       </profile>
@@ -22,10 +22,14 @@
         <module name="tenant-service" />
       </profile>
     </annotationProcessing>
+    <bytecodeTargetLevel>
+      <module name="analytics-service (1)" target="1.8" />
+    </bytecodeTargetLevel>
   </component>
   <component name="JavacSettings">
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">
       <module name="analytics-service" options="-parameters" />
+      <module name="analytics-service (1)" options="-parameters" />
       <module name="delivery-service" options="-parameters" />
       <module name="notification-service" options="-parameters" />
       <module name="tenant-service" options="-parameters" />

@@ -28,6 +28,20 @@
                 <module>tenant-service</module>
             </modules>
         </profile>
+
+        <profile>
+            <id>delivery</id>
+            <modules>
+                <module>delivery-service</module>
+            </modules>
+        </profile>
+
+        <profile>
+            <id>analytics</id>
+            <modules>
+                <module>analytics-service</module>
+            </modules>
+        </profile>
     </profiles>
 
 
