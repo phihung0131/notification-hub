@@ -11,7 +11,8 @@
     <packaging>pom</packaging>
 
     <modules>
-        <module>proto-shared</module>
+        <module>commons-shared</module>
+        <module>gateway-service</module>
     </modules>
 
     <profiles>
@@ -40,6 +41,13 @@
             <id>analytics</id>
             <modules>
                 <module>analytics-service</module>
+            </modules>
+        </profile>
+
+        <profile>
+            <id>gateway</id>
+            <modules>
+                <module>gateway-service</module>
             </modules>
         </profile>
     </profiles>

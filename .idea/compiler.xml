@@ -7,10 +7,11 @@
         <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
-        <module name="analytics-service" />
         <module name="delivery-service" />
-        <module name="proto-shared" />
+        <module name="analytics-service" />
         <module name="notification-service" />
+        <module name="gateway-service" />
+        <module name="commons-shared" />
       </profile>
       <profile name="Annotation profile for tenant-service" enabled="true">
         <sourceOutputDir name="target/generated-sources/annotations" />
@@ -24,13 +25,16 @@
     </annotationProcessing>
     <bytecodeTargetLevel>
       <module name="analytics-service (1)" target="1.8" />
+      <module name="proto-shared" target="21" />
     </bytecodeTargetLevel>
   </component>
   <component name="JavacSettings">
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">
       <module name="analytics-service" options="-parameters" />
       <module name="analytics-service (1)" options="-parameters" />
+      <module name="commons-shared" options="-parameters" />
       <module name="delivery-service" options="-parameters" />
+      <module name="gateway-service" options="-parameters" />
       <module name="notification-service" options="-parameters" />
       <module name="tenant-service" options="-parameters" />
     </option>
