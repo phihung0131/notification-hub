@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+package tenant;
+
+option java_multiple_files = true;
+option java_package = "org.example.proto.tenant";
+
+service TenantService {
+  // Validate API Key - Used by Gateway
+  rpc ValidateApiKey (ValidateApiKeyRequest) returns (ValidateApiKeyResponse);
+
+  // Check Quota - Used by Notification Service (pre-check)
+  rpc CheckQuota (CheckQuotaRequest) returns (CheckQuotaResponse);
+}
+
+// Validate API Key Messages
+message ValidateApiKeyRequest {
+  string apiKey = 1;
+}
+
+message ValidateApiKeyResponse {
+  bool isValid = 1;
+  string tenantId = 2;
+  string status = 3; // ACTIVE, SUSPENDED
+  string plan = 4; // FREE, PRO, ENTERPRISE
+}
+
+// Check Quota Messages
+message CheckQuotaRequest {
+  string tenantId = 1;
+}
+
+message CheckQuotaResponse {
+  bool isAllowed = 1;
+  int32 remaining = 2;
+  int32 limit = 3;
+}
