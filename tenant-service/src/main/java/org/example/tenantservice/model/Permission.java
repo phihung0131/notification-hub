@@ -1,8 +1,10 @@
 package org.example.tenantservice.model;
 
 import jakarta.persistence.*;
-import lombok.*;
+
 import org.example.tenantservice.common.enums.PermissionType;
+
+import lombok.*;
 
 @Entity
 @Getter
@@ -10,9 +12,7 @@ import org.example.tenantservice.common.enums.PermissionType;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@Table(uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"name", "type"})
-})
+@Table(uniqueConstraints = {@UniqueConstraint(columnNames = {"name", "type"})})
 public class Permission {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)

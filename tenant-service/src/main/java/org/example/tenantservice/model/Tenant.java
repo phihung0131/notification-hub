@@ -1,10 +1,14 @@
 package org.example.tenantservice.model;
 
-import jakarta.persistence.*;
-import lombok.*;
-import org.example.tenantservice.common.enums.Plan;
-
+import java.time.Instant;
 import java.util.Set;
+
+import jakarta.persistence.*;
+
+import org.example.tenantservice.common.enums.Plan;
+import org.example.tenantservice.common.enums.TenantStatus;
+
+import lombok.*;
 
 @Entity
 @Getter
@@ -12,15 +16,24 @@ import java.util.Set;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Table(name = "tenants")
 public class Tenant {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
 
+    @Column(nullable = false)
     private String name;
 
     @Enumerated(EnumType.STRING)
-    private Plan plan;
+    @Column(nullable = false)
+    @Builder.Default
+    private Plan plan = Plan.FREE;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    @Builder.Default
+    private TenantStatus status = TenantStatus.ACTIVE;
 
     @Column(unique = true, nullable = false)
     private String email;
@@ -29,16 +42,30 @@ public class Tenant {
     private String password;
 
     @Builder.Default
-    private Integer quotaLimit = 0;    // -1 unlimited
+    @Column(nullable = false)
+    private Integer quotaLimit = 0; // -1 unlimited
 
     @Builder.Default
-    private Integer quotaUsed = 0;     // cached snapshot (optional)
+    @Column(nullable = false)
+    private Integer quotaUsed = 0; // accurate count updated by Saga
+
+    @Column(nullable = false, updatable = false)
+    @Builder.Default
+    private Instant createdAt = Instant.now();
+
+    @Column(nullable = false)
+    @Builder.Default
+    private Instant updatedAt = Instant.now();
 
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
             name = "tenant_permissions",
             joinColumns = @JoinColumn(name = "tenant_id"),
-            inverseJoinColumns = @JoinColumn(name = "permission_id")
-    )
+            inverseJoinColumns = @JoinColumn(name = "permission_id"))
     private Set<Permission> permissions;
+
+    @PreUpdate
+    protected void onUpdate() {
+        this.updatedAt = Instant.now();
+    }
 }

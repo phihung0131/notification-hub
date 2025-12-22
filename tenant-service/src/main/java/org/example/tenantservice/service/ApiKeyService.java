@@ -1,8 +1,12 @@
 package org.example.tenantservice.service;
 
-import lombok.RequiredArgsConstructor;
+import java.security.SecureRandom;
+import java.util.Base64;
+import java.util.HashSet;
+import java.util.Set;
+
+import org.example.commons.exception.BaseException;
 import org.example.tenantservice.common.exception.ApiErrorMessage;
-import org.example.tenantservice.common.exception.BaseException;
 import org.example.tenantservice.config.security.CustomUserDetails;
 import org.example.tenantservice.dto.request.ApiKeyCreateRequest;
 import org.example.tenantservice.model.ApiKey;
@@ -14,10 +18,7 @@ import org.example.tenantservice.repository.TenantRepository;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 
-import java.security.SecureRandom;
-import java.util.Base64;
-import java.util.HashSet;
-import java.util.Set;
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
@@ -31,12 +32,16 @@ public class ApiKeyService {
 
     /**
      * Create a new API key for the current tenant.
+     *
      * @param request the API key creation request
      * @return the created API key
      */
     public ApiKey createApiKey(ApiKeyCreateRequest request) {
         CustomUserDetails user = authService.getCurrentUser();
-        Tenant tenant = tenantRepository.findById(user.getId()).orElseThrow(() -> new BaseException(ApiErrorMessage.TENANT_NOT_FOUND));
+        Tenant tenant =
+                tenantRepository
+                        .findById(user.getId())
+                        .orElseThrow(() -> new BaseException(ApiErrorMessage.TENANT_NOT_FOUND));
 
         ApiKey newApiKey = new ApiKey();
         newApiKey.setTenant(tenant);
@@ -44,7 +49,11 @@ public class ApiKeyService {
 
         Set<Permission> permissions = new HashSet<>();
         for (String permissionId : request.getPermissionIds()) {
-            Permission permission = permissionRepository.findById(permissionId).orElseThrow(() -> new BaseException(ApiErrorMessage.PERMISSION_NOT_FOUND));
+            Permission permission =
+                    permissionRepository
+                            .findById(permissionId)
+                            .orElseThrow(
+                                    () -> new BaseException(ApiErrorMessage.PERMISSION_NOT_FOUND));
             permissions.add(permission);
         }
 
@@ -56,11 +65,15 @@ public class ApiKeyService {
 
     /**
      * Revoke an existing API key.
+     *
      * @param apiKeyId the ID of the API key to revoke
      */
     public void revokeApiKey(String apiKeyId) {
         CustomUserDetails user = authService.getCurrentUser();
-        ApiKey apiKey = apiKeyRepository.findById(apiKeyId).orElseThrow(() -> new BaseException(ApiErrorMessage.API_KEY_NOT_FOUND));
+        ApiKey apiKey =
+                apiKeyRepository
+                        .findById(apiKeyId)
+                        .orElseThrow(() -> new BaseException(ApiErrorMessage.API_KEY_NOT_FOUND));
 
         if (!apiKey.getTenant().getId().equals(user.getId())) {
             throw new BaseException(ApiErrorMessage.FORBIDDEN);
@@ -75,6 +88,7 @@ public class ApiKeyService {
 
     /**
      * List all API keys for the current tenant.
+     *
      * @return a set of API keys
      */
     public Set<ApiKey> listApiKeys() {
@@ -84,12 +98,16 @@ public class ApiKeyService {
 
     /**
      * Get details of a specific API key.
+     *
      * @param apiKeyId the ID of the API key
      * @return the API key
      */
     public ApiKey getApiKeyDetails(String apiKeyId) {
         CustomUserDetails user = authService.getCurrentUser();
-        ApiKey apiKey = apiKeyRepository.findById(apiKeyId).orElseThrow(() -> new BaseException(ApiErrorMessage.API_KEY_NOT_FOUND));
+        ApiKey apiKey =
+                apiKeyRepository
+                        .findById(apiKeyId)
+                        .orElseThrow(() -> new BaseException(ApiErrorMessage.API_KEY_NOT_FOUND));
 
         if (!apiKey.getTenant().getId().equals(user.getId())) {
             throw new BaseException(ApiErrorMessage.FORBIDDEN);
@@ -100,13 +118,17 @@ public class ApiKeyService {
 
     /**
      * Update an existing API key's details.
+     *
      * @param apiKeyId the ID of the API key to update
      * @param request the API key update request
      * @return the updated API key
      */
     public ApiKey updateApiKey(String apiKeyId, ApiKeyCreateRequest request) {
         CustomUserDetails user = authService.getCurrentUser();
-        ApiKey apiKey = apiKeyRepository.findById(apiKeyId).orElseThrow(() -> new BaseException(ApiErrorMessage.API_KEY_NOT_FOUND));
+        ApiKey apiKey =
+                apiKeyRepository
+                        .findById(apiKeyId)
+                        .orElseThrow(() -> new BaseException(ApiErrorMessage.API_KEY_NOT_FOUND));
 
         if (!apiKey.getTenant().getId().equals(user.getId())) {
             throw new BaseException(ApiErrorMessage.FORBIDDEN);
@@ -119,7 +141,13 @@ public class ApiKeyService {
         if (request.getPermissionIds() != null && !request.getPermissionIds().isEmpty()) {
             Set<Permission> permissions = new HashSet<>();
             for (String permissionId : request.getPermissionIds()) {
-                Permission permission = permissionRepository.findById(permissionId).orElseThrow(() -> new BaseException(ApiErrorMessage.PERMISSION_NOT_FOUND));
+                Permission permission =
+                        permissionRepository
+                                .findById(permissionId)
+                                .orElseThrow(
+                                        () ->
+                                                new BaseException(
+                                                        ApiErrorMessage.PERMISSION_NOT_FOUND));
                 permissions.add(permission);
             }
             apiKey.setPermissions(permissions);
@@ -132,6 +160,7 @@ public class ApiKeyService {
 
     /**
      * Generate a secure random API key.
+     *
      * @return the generated API key
      */
     public String generateApiKey() {
@@ -142,10 +171,9 @@ public class ApiKeyService {
 
     /**
      * Evict the cache entry for the given API key.
+     *
      * @param apiKey the API key whose cache entry should be evicted
      */
     @CacheEvict(value = "apiKeyPermissions", key = "#apiKey.key")
-    public void evictCache(ApiKey apiKey) {
-    }
-
+    public void evictCache(ApiKey apiKey) {}
 }

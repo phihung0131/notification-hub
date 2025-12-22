@@ -1,8 +1,10 @@
 package org.example.tenantservice.controller;
 
+import java.util.Set;
+
 import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
-import org.example.tenantservice.common.baseclass.ApiResponse;
+
+import org.example.commons.baseclass.ApiResponse;
 import org.example.tenantservice.dto.request.PermissionCreateRequest;
 import org.example.tenantservice.model.Permission;
 import org.example.tenantservice.service.PermissionService;
@@ -10,7 +12,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Set;
+import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/permissions")
@@ -20,8 +22,8 @@ public class PermissionController {
     private final PermissionService permissionService;
 
     /**
-     * Public endpoint to get all API permissions.
-     * This will be called by other services (e.g., Gateway) to fetch available permissions.
+     * Public endpoint to get all API permissions. This will be called by other services (e.g.,
+     * Gateway) to fetch available permissions.
      */
     @GetMapping("/api")
     public ResponseEntity<ApiResponse<Set<Permission>>> getPermission() {
@@ -30,14 +32,17 @@ public class PermissionController {
     }
 
     /**
-     * Internal endpoint to create a new permission.
-     * This will be called by Admin Service when setting up new permissions.
+     * Internal endpoint to create a new permission. This will be called by Admin Service when
+     * setting up new permissions.
+     *
      * @param request Permission creation request
      * @return Created Permission entity
      */
-    // TODO: Convert to event-driven (when other service have new permission, it will emit event to TenantService)
+    // TODO: Convert to event-driven (when other service have new permission, it will emit event to
+    // TenantService)
     @PostMapping
-    public ResponseEntity<ApiResponse<Permission>> createPermission(@Valid @RequestBody PermissionCreateRequest request) {
+    public ResponseEntity<ApiResponse<Permission>> createPermission(
+            @Valid @RequestBody PermissionCreateRequest request) {
         Permission permission = permissionService.createPermission(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(permission));
     }

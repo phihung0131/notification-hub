@@ -8,12 +8,12 @@ COPY pom.xml ./pom.xml
 # Install parent POM to local repository
 RUN mvn -q -B -N install
 
-# Copy proto-shared
-COPY proto-shared/pom.xml ./proto-shared/pom.xml
-COPY ./proto-shared/src ./proto-shared/src
+# Copy commons-shared
+COPY commons-shared/pom.xml ./commons-shared/pom.xml
+COPY ./commons-shared/src ./commons-shared/src
 
-# Build and install proto-shared
-WORKDIR /app/proto-shared
+# Build and install commons-shared
+WORKDIR /app/commons-shared
 RUN mvn -q -B -DskipTests clean install
 
 # Copy tenant-service POM ONLY

@@ -1,11 +1,12 @@
 package org.example.tenantservice.dto.response;
 
-import lombok.Getter;
-import lombok.Setter;
-import org.example.tenantservice.model.Permission;
-
 import java.time.Instant;
 import java.util.Set;
+
+import org.example.tenantservice.model.Permission;
+
+import lombok.Getter;
+import lombok.Setter;
 
 @Getter
 @Setter

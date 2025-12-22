@@ -1,25 +1,25 @@
 package org.example.tenantservice.config.security;
 
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.JwtException;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.io.Decoders;
-import io.jsonwebtoken.security.Keys;
-import jakarta.annotation.PostConstruct;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.stereotype.Component;
-
 import java.security.Key;
 import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
 
-/**
- * Utility class for generating and validating JWT tokens
- */
+import jakarta.annotation.PostConstruct;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.stereotype.Component;
+
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.io.Decoders;
+import io.jsonwebtoken.security.Keys;
+import lombok.extern.slf4j.Slf4j;
+
+/** Utility class for generating and validating JWT tokens */
 @Slf4j
 @Component
 public class JwtUtils {
@@ -41,14 +41,16 @@ public class JwtUtils {
 
     /**
      * Generates a JWT token from an Authentication object.
+     *
      * @param authentication the authentication object containing user details
      * @return the generated JWT token as a String
      */
     public String generateJwtToken(Authentication authentication) {
         String username = authentication.getName();
-        List<String> authorities = authentication.getAuthorities().stream()
-                .map(GrantedAuthority::getAuthority)
-                .collect(Collectors.toList());
+        List<String> authorities =
+                authentication.getAuthorities().stream()
+                        .map(GrantedAuthority::getAuthority)
+                        .collect(Collectors.toList());
 
         return Jwts.builder()
                 .subject(username)
@@ -61,6 +63,7 @@ public class JwtUtils {
 
     /**
      * Parses the JWT token to get all claims.
+     *
      * @param token the JWT token as a String
      * @return the Claims object containing all claims from the token
      */
@@ -74,6 +77,7 @@ public class JwtUtils {
 
     /**
      * Extracts the username from the JWT token.
+     *
      * @param token the JWT token as a String
      * @return the username (subject) extracted from the token
      */
@@ -83,6 +87,7 @@ public class JwtUtils {
 
     /**
      * Validates a JWT token.
+     *
      * @param authToken the JWT token as a String
      * @return true if the token is valid, false otherwise
      */

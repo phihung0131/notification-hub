@@ -1,10 +1,11 @@
 package org.example.tenantservice.model;
 
-import jakarta.persistence.*;
-import lombok.*;
-
 import java.time.Instant;
 import java.util.Set;
+
+import jakarta.persistence.*;
+
+import lombok.*;
 
 @Entity
 @Getter
@@ -24,14 +25,13 @@ public class ApiKey {
     @JoinColumn(name = "tenant_id", nullable = false)
     private Tenant tenant;
 
-    private boolean revoked; // Đã bị thu hồi chưa?
-    private Instant expiredAt; // Thời gian hết hạn (nếu có)
+    private boolean revoked; // revocation status
+    private Instant expiredAt; // expiration time
 
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
             name = "apikey_permissions",
             joinColumns = @JoinColumn(name = "apikey_id"),
-            inverseJoinColumns = @JoinColumn(name = "permission_id")
-    )
+            inverseJoinColumns = @JoinColumn(name = "permission_id"))
     private Set<Permission> permissions;
 }

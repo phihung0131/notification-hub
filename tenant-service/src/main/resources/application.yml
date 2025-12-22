@@ -78,3 +78,9 @@ logging:
 app:
   jwtSecret: L3NlY3JldEtleUZvckF1dGhTZXJ2aWNlVGhhdElzVmVyeUxvbmdBbmRTZWN1cmUxMjM0NTY3ODkwMTIzNDU2Nzg5MA
   jwtExpirationMs: 86400000 # 1 day
+  kafka:
+    topic:
+      result: notification.result
+  quota:
+    batch-size: 50
+    flush-interval-ms: 5000
