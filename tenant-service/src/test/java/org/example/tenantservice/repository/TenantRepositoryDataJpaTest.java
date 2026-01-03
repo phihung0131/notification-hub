@@ -1,41 +1,38 @@
-package org.example.tenantservice.slide.repository;
+package org.example.tenantservice.repository;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import java.util.Optional;
+import java.util.Set;
 
 import org.example.tenantservice.common.enums.PermissionType;
 import org.example.tenantservice.common.enums.Plan;
 import org.example.tenantservice.model.Permission;
 import org.example.tenantservice.model.Tenant;
-import org.example.tenantservice.repository.PermissionRepository;
-import org.example.tenantservice.repository.TenantRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.dao.DataIntegrityViolationException;
 
-import java.util.Optional;
-import java.util.Set;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
 @DataJpaTest
 class TenantRepositoryDataJpaTest {
 
-    @Autowired
-    TenantRepository tenantRepository;
+    @Autowired TenantRepository tenantRepository;
 
-    @Autowired
-    PermissionRepository permissionRepository;
+    @Autowired PermissionRepository permissionRepository;
 
     @Test
     @DisplayName("save and findByEmail should work")
     void saveAndFindByEmail() {
-        Tenant t = Tenant.builder()
-                .email("repo-test@example.com")
-                .name("Repo Test")
-                .password("pwd")
-                .plan(Plan.FREE)
-                .build();
+        Tenant t =
+                Tenant.builder()
+                        .email("repo-test@example.com")
+                        .name("Repo Test")
+                        .password("pwd")
+                        .plan(Plan.FREE)
+                        .build();
 
         Tenant saved = tenantRepository.save(t);
         assertThat(saved.getId()).isNotNull();
@@ -48,19 +45,21 @@ class TenantRepositoryDataJpaTest {
     @Test
     @DisplayName("saving two tenants with same email should violate unique constraint")
     void duplicateEmail_throwsDataIntegrityViolation() {
-        Tenant a = Tenant.builder()
-                .email("dup@example.com")
-                .name("A")
-                .password("p")
-                .plan(Plan.FREE)
-                .build();
+        Tenant a =
+                Tenant.builder()
+                        .email("dup@example.com")
+                        .name("A")
+                        .password("p")
+                        .plan(Plan.FREE)
+                        .build();
 
-        Tenant b = Tenant.builder()
-                .email("dup@example.com")
-                .name("B")
-                .password("p2")
-                .plan(Plan.FREE)
-                .build();
+        Tenant b =
+                Tenant.builder()
+                        .email("dup@example.com")
+                        .name("B")
+                        .password("p2")
+                        .plan(Plan.FREE)
+                        .build();
 
         tenantRepository.saveAndFlush(a);
 
@@ -72,21 +71,23 @@ class TenantRepositoryDataJpaTest {
     @Test
     @DisplayName("saving tenant with permissions persists relationship")
     void saveWithPermissions_persistsRelationship() {
-        Permission p = Permission.builder()
-                .name("notification:send")
-                .type(PermissionType.API)
-                .description("send notifications")
-                .build();
+        Permission p =
+                Permission.builder()
+                        .name("notification:send")
+                        .type(PermissionType.API)
+                        .description("send notifications")
+                        .build();
 
         Permission savedPerm = permissionRepository.saveAndFlush(p);
 
-        Tenant t = Tenant.builder()
-                .email("withperm@example.com")
-                .name("WithPerm")
-                .password("pwd")
-                .plan(Plan.PRO)
-                .permissions(Set.of(savedPerm))
-                .build();
+        Tenant t =
+                Tenant.builder()
+                        .email("withperm@example.com")
+                        .name("WithPerm")
+                        .password("pwd")
+                        .plan(Plan.PRO)
+                        .permissions(Set.of(savedPerm))
+                        .build();
 
         Tenant savedTenant = tenantRepository.saveAndFlush(t);
 
@@ -100,12 +101,13 @@ class TenantRepositoryDataJpaTest {
     @Test
     @DisplayName("new tenant has default quota fields set")
     void defaultQuotaFields_areInitialized() {
-        Tenant t = Tenant.builder()
-                .email("quota@example.com")
-                .name("Quota")
-                .password("pwd")
-                .plan(Plan.FREE)
-                .build();
+        Tenant t =
+                Tenant.builder()
+                        .email("quota@example.com")
+                        .name("Quota")
+                        .password("pwd")
+                        .plan(Plan.FREE)
+                        .build();
 
         Tenant saved = tenantRepository.save(t);
         assertThat(saved.getQuotaLimit()).isNotNull();

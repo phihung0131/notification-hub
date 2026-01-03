@@ -1,7 +1,14 @@
-package org.example.tenantservice.unit.service;
+package org.example.tenantservice.service;
 
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
+import java.time.Instant;
+import java.util.Optional;
+import java.util.Set;
+
+import org.example.commons.exception.BaseException;
 import org.example.tenantservice.common.exception.ApiErrorMessage;
-import org.example.tenantservice.common.exception.BaseException;
 import org.example.tenantservice.config.security.CustomUserDetails;
 import org.example.tenantservice.dto.request.ApiKeyCreateRequest;
 import org.example.tenantservice.model.ApiKey;
@@ -10,8 +17,6 @@ import org.example.tenantservice.model.Tenant;
 import org.example.tenantservice.repository.ApiKeyRepository;
 import org.example.tenantservice.repository.PermissionRepository;
 import org.example.tenantservice.repository.TenantRepository;
-import org.example.tenantservice.service.ApiKeyService;
-import org.example.tenantservice.service.AuthService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -19,30 +24,18 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.Instant;
-import java.util.Optional;
-import java.util.Set;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
-
 @ExtendWith(MockitoExtension.class)
 class ApiKeyServiceTest {
 
-    @Mock
-    PermissionRepository permissionRepository;
+    @Mock PermissionRepository permissionRepository;
 
-    @Mock
-    ApiKeyRepository apiKeyRepository;
+    @Mock ApiKeyRepository apiKeyRepository;
 
-    @Mock
-    TenantRepository tenantRepository;
+    @Mock TenantRepository tenantRepository;
 
-    @Mock
-    AuthService authService;
+    @Mock AuthService authService;
 
-    @InjectMocks
-    ApiKeyService apiKeyService;
+    @InjectMocks ApiKeyService apiKeyService;
 
     CustomUserDetails currentUser;
 
@@ -130,7 +123,8 @@ class ApiKeyServiceTest {
         when(authService.getCurrentUser()).thenReturn(currentUser);
         when(apiKeyRepository.findById("k1")).thenReturn(Optional.empty());
 
-        BaseException ex = assertThrows(BaseException.class, () -> apiKeyService.revokeApiKey("k1"));
+        BaseException ex =
+                assertThrows(BaseException.class, () -> apiKeyService.revokeApiKey("k1"));
         assertEquals(ApiErrorMessage.API_KEY_NOT_FOUND.getCode(), ex.getCode());
     }
 
@@ -144,7 +138,8 @@ class ApiKeyServiceTest {
         when(authService.getCurrentUser()).thenReturn(currentUser);
         when(apiKeyRepository.findById("k1")).thenReturn(Optional.of(apiKey));
 
-        BaseException ex = assertThrows(BaseException.class, () -> apiKeyService.revokeApiKey("k1"));
+        BaseException ex =
+                assertThrows(BaseException.class, () -> apiKeyService.revokeApiKey("k1"));
         assertEquals(ApiErrorMessage.FORBIDDEN.getCode(), ex.getCode());
     }
 
@@ -182,7 +177,8 @@ class ApiKeyServiceTest {
         when(authService.getCurrentUser()).thenReturn(currentUser);
         when(apiKeyRepository.findById("k1")).thenReturn(Optional.of(apiKey));
 
-        BaseException ex = assertThrows(BaseException.class, () -> apiKeyService.getApiKeyDetails("k1"));
+        BaseException ex =
+                assertThrows(BaseException.class, () -> apiKeyService.getApiKeyDetails("k1"));
         assertEquals(ApiErrorMessage.FORBIDDEN.getCode(), ex.getCode());
     }
 
@@ -191,7 +187,8 @@ class ApiKeyServiceTest {
         when(authService.getCurrentUser()).thenReturn(currentUser);
         when(apiKeyRepository.findById("k1")).thenReturn(Optional.empty());
 
-        BaseException ex = assertThrows(BaseException.class, () -> apiKeyService.getApiKeyDetails("k1"));
+        BaseException ex =
+                assertThrows(BaseException.class, () -> apiKeyService.getApiKeyDetails("k1"));
         assertEquals(ApiErrorMessage.API_KEY_NOT_FOUND.getCode(), ex.getCode());
     }
 
@@ -225,6 +222,4 @@ class ApiKeyServiceTest {
         assertNotNull(k);
         assertFalse(k.isEmpty());
     }
-
 }
-

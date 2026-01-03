@@ -1,32 +1,29 @@
-package org.example.tenantservice.unit.service;
+package org.example.tenantservice.service;
 
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
+import java.util.Optional;
+import java.util.Set;
+
+import org.example.commons.exception.BaseException;
 import org.example.tenantservice.common.enums.PermissionType;
 import org.example.tenantservice.common.exception.ApiErrorMessage;
-import org.example.tenantservice.common.exception.BaseException;
 import org.example.tenantservice.dto.request.PermissionCreateRequest;
 import org.example.tenantservice.model.Permission;
 import org.example.tenantservice.repository.PermissionRepository;
-import org.example.tenantservice.service.PermissionService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.Optional;
-import java.util.Set;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
-
 @ExtendWith(MockitoExtension.class)
 class PermissionServiceTest {
 
-    @Mock
-    PermissionRepository permissionRepository;
+    @Mock PermissionRepository permissionRepository;
 
-    @InjectMocks
-    PermissionService permissionService;
+    @InjectMocks PermissionService permissionService;
 
     @Test
     void createPermission_whenAlreadyExists_thenThrow() {
@@ -34,9 +31,11 @@ class PermissionServiceTest {
         req.setName("READ");
         req.setType(PermissionType.API);
 
-        when(permissionRepository.findByNameAndType(req.getName(), req.getType())).thenReturn(Optional.of(new Permission()));
+        when(permissionRepository.findByNameAndType(req.getName(), req.getType()))
+                .thenReturn(Optional.of(new Permission()));
 
-        BaseException ex = assertThrows(BaseException.class, () -> permissionService.createPermission(req));
+        BaseException ex =
+                assertThrows(BaseException.class, () -> permissionService.createPermission(req));
         assertEquals(ApiErrorMessage.PERMISSION_ALREADY_EXISTS.getCode(), ex.getCode());
     }
 
@@ -53,7 +52,8 @@ class PermissionServiceTest {
         saved.setType(req.getType());
         saved.setDescription(req.getDescription());
 
-        when(permissionRepository.findByNameAndType(req.getName(), req.getType())).thenReturn(Optional.empty());
+        when(permissionRepository.findByNameAndType(req.getName(), req.getType()))
+                .thenReturn(Optional.empty());
         when(permissionRepository.save(any())).thenReturn(saved);
 
         Permission out = permissionService.createPermission(req);
@@ -64,12 +64,11 @@ class PermissionServiceTest {
 
     @Test
     void getPermissionsByType_returnsSet() {
-        when(permissionRepository.findByType(PermissionType.API)).thenReturn(Set.of(new Permission()));
+        when(permissionRepository.findByType(PermissionType.API))
+                .thenReturn(Set.of(new Permission()));
 
         Set<Permission> out = permissionService.getPermissionsByType();
         assertNotNull(out);
         assertEquals(1, out.size());
     }
-
 }
-
