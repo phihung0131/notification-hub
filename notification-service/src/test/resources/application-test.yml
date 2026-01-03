@@ -1,0 +1,53 @@
+# Test configuration for Notification Service
+spring:
+  application:
+    name: notification-service-test
+
+  # H2 in-memory database for tests
+  datasource:
+    url: jdbc:h2:mem:testdb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.H2Dialect
+
+  # Disable Redis for unit tests
+  data:
+    redis:
+      host: localhost
+      port: 6379
+  cache:
+    type: simple
+
+  # Kafka test configuration
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: io.confluent.kafka.serializers.KafkaAvroSerializer
+    properties:
+      schema.registry.url: http://localhost:8081
+
+# gRPC test configuration
+grpc:
+  server:
+    port: 0 # Random port
+  client:
+    tenant-service:
+      address: static://localhost:9090
+      negotiationType: PLAINTEXT
+
+# Logging
+logging:
+  level:
+    root: WARN
+    org.example.notificationservice: INFO
+    org.springframework.test: INFO
