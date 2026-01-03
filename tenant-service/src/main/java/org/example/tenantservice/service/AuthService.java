@@ -29,67 +29,6 @@ import lombok.RequiredArgsConstructor;
 
 /**
  * Service responsible for authentication, authorization, and tenant registration.
- *
- * <p>This service handles:
- *
- * <ul>
- *   <li>User authentication with JWT token generation
- *   <li>API key validation and permission retrieval
- *   <li>New tenant registration with password encoding
- *   <li>Current user context retrieval
- * </ul>
- *
- * <h2>Security Features:</h2>
- *
- * <ul>
- *   <li><strong>Password Encoding:</strong> Uses BCrypt for secure password storage
- *   <li><strong>JWT Generation:</strong> Creates signed tokens for authenticated sessions
- *   <li><strong>API Key Caching:</strong> Validates API keys with Redis caching (cache name:
- *       apiKeyPermissions)
- *   <li><strong>Permission Filtering:</strong> Returns only API-type permissions for API key
- *       validation
- * </ul>
- *
- * <h2>Authentication Flow:</h2>
- *
- * <ol>
- *   <li>Client sends email + password to /auth/login
- *   <li>AuthService authenticates via AuthenticationManager (Spring Security)
- *   <li>On success: Generate JWT token and set SecurityContext
- *   <li>Return JWT to client for subsequent requests
- * </ol>
- *
- * <h2>API Key Validation Flow:</h2>
- *
- * <ol>
- *   <li>Gateway sends API key to /auth/internal/apikeys/validate
- *   <li>Check Redis cache for previous validation (TTL-based)
- *   <li>If miss: Query database for API key
- *   <li>Verify not revoked
- *   <li>Extract tenant ID and API-type permissions
- *   <li>Cache result and return to Gateway
- * </ol>
- *
- * <h2>Registration Flow:</h2>
- *
- * <ol>
- *   <li>Check email uniqueness
- *   <li>Encode password with BCrypt
- *   <li>Create tenant with default quota (1000) and FREE plan
- *   <li>Save to database
- * </ol>
- *
- * <h2>Thread Safety:</h2>
- *
- * <p>This service is stateless and thread-safe. Uses Spring's singleton scope.
- *
- * @author Notification Hub Team
- * @version 1.0
- * @since 1.0
- * @see TenantRepository
- * @see ApiKeyRepository
- * @see JwtUtils
- * @see org.springframework.security.authentication.AuthenticationManager
  */
 @Service
 @RequiredArgsConstructor

@@ -10,6 +10,5 @@ import lombok.Setter;
 @Setter
 public class LoginRequest {
     @NotNull @Email private String email;
-
     @NotNull private String password;
 }

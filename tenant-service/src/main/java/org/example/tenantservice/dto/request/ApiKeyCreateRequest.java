@@ -13,6 +13,5 @@ import lombok.Setter;
 @Setter
 public class ApiKeyCreateRequest {
     @NotNull public Instant expiredAt;
-
     @NotEmpty public Set<String> permissionIds;
 }

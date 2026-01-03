@@ -23,12 +23,6 @@ import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 
-/**
- * Unit tests for {@link TenantGrpcService}. Tests gRPC endpoints for API key validation and quota
- * checking.
- *
- * @author Notification Hub Team
- */
 @ExtendWith(MockitoExtension.class)
 class TenantGrpcServiceTest {
 

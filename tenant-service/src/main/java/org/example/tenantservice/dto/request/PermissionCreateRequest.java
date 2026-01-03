@@ -11,8 +11,6 @@ import lombok.Setter;
 @Setter
 public class PermissionCreateRequest {
     @NotNull private String name;
-
     @NotNull private PermissionType type;
-
     private String description;
 }
