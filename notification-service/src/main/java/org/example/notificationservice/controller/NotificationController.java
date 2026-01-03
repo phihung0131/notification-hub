@@ -1,34 +1,49 @@
 package org.example.notificationservice.controller;
 
 import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
-import org.example.notificationservice.common.baseclass.ApiResponse;
+
+import org.example.commons.baseclass.ApiResponse;
 import org.example.notificationservice.dto.request.SendNotificationRequest;
 import org.example.notificationservice.dto.response.SendNotificationResponse;
-import org.example.notificationservice.service.NotificationService;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RestController;
+import org.example.notificationservice.service.NotificationOrchestrationService;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.*;
 
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+/**
+ * REST controller for notification operations with fast response time (<50ms).
+ */
 @RestController
+@RequestMapping("/send")
 @RequiredArgsConstructor
+@Slf4j
 public class NotificationController {
 
-    private final NotificationService notificationService;
+    private final NotificationOrchestrationService orchestrationService;
 
-    @GetMapping("/send-notification")
-    public ResponseEntity<ApiResponse<SendNotificationResponse>> sendNotification(
-            @RequestHeader("X-Tenant-Id") String tenantId,
-//            @RequestHeader("X-Api-Key") String apiKey,
-            @Valid @RequestBody SendNotificationRequest request
-    ) {
-//        request.setApiKey(apiKey);
-        request.setTenantId(tenantId);
-        SendNotificationResponse response = notificationService.sendNotification(request);
+    /**
+     * Send notification endpoint. Accepts notification request, validates, checks quota, saves to
+     * DB, and publishes to Kafka. Returns 202 ACCEPTED immediately with message ID.
+     *
+     * @param request notification request
+     * @param tenantId tenant ID from gateway (X-Tenant-Id header)
+     * @return API response with message ID
+     */
+    @PostMapping
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public ApiResponse<SendNotificationResponse> send(
+            @RequestBody @Valid SendNotificationRequest request,
+            @RequestHeader("X-Tenant-Id") String tenantId) {
 
-        return ResponseEntity.ok(ApiResponse.ok(response));
+        log.info(
+                "Received notification request from tenant: {}, channel: {}",
+                tenantId,
+                request.getChannel());
+
+        SendNotificationResponse response = orchestrationService.send(request, tenantId);
+
+        return ApiResponse.ok(response);
     }
-
 }

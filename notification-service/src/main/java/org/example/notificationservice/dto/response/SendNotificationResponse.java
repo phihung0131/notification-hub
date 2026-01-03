@@ -1,11 +1,19 @@
 package org.example.notificationservice.dto.response;
 
-import lombok.Data;
 import org.example.notificationservice.common.enums.NotificationStatus;
 
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
 @Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class SendNotificationResponse {
-    String id;
-    String tenantId;
-    NotificationStatus notificationStatus;
+    private String id;
+    private String tenantId;
+    private NotificationStatus notificationStatus;
+    private String message;
 }

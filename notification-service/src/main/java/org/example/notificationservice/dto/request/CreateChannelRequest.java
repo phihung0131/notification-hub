@@ -1,6 +1,7 @@
 package org.example.notificationservice.dto.request;
 
 import jakarta.validation.constraints.NotNull;
+
 import lombok.Getter;
 import lombok.Setter;
 

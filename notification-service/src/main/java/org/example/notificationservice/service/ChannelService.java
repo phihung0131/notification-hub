@@ -1,10 +1,11 @@
 package org.example.notificationservice.service;
 
-import lombok.RequiredArgsConstructor;
 import org.example.notificationservice.dto.request.CreateChannelRequest;
 import org.example.notificationservice.model.Channel;
 import org.example.notificationservice.repository.ChannelRepository;
 import org.springframework.stereotype.Service;
+
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor

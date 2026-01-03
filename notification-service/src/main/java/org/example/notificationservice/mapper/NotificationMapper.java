@@ -1,11 +1,12 @@
 package org.example.notificationservice.mapper;
 
-import org.example.events.NotificationEvent;
-import org.example.notificationservice.dto.request.SendNotificationRequest;
-import org.example.notificationservice.util.MapUtil;
-
 import java.time.Instant;
 import java.util.UUID;
+
+import org.example.commons.util.MapUtil;
+import org.example.events.NotificationEvent;
+import org.example.events.enums.NotificationStatus;
+import org.example.notificationservice.dto.request.SendNotificationRequest;
 
 public class NotificationMapper {
     public static NotificationEvent toEventDto(SendNotificationRequest entity) {
@@ -14,6 +15,7 @@ public class NotificationMapper {
         MapUtil.copyProperties(entity, dto);
         dto.setId(UUID.randomUUID());
         dto.setCreatedAt(Instant.now());
+        dto.setStatus(NotificationStatus.PENDING);
 
         return dto;
     }

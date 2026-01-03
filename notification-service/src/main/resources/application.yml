@@ -79,3 +79,8 @@ logging:
     root: INFO
     org.example.notificationservice: DEBUG
     org.springframework.kafka: WARN
+
+app:
+  kafka:
+    topic:
+      requested: notification.requested
