@@ -74,3 +74,12 @@ logging:
     root: INFO
     org.example.analyticsservice: DEBUG
     org.springframework.kafka: WARN
+
+app:
+  kafka:
+    topic:
+      requested: notification.requested
+      result: notification.result
+  batch:
+    size: 50
+    flush-interval-ms: 5000
