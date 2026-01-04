@@ -1,0 +1,35 @@
+# Test configuration for Gateway Service
+spring:
+  application:
+    name: gateway-service-test
+
+  # Cloud Gateway configuration
+  cloud:
+    gateway:
+      routes:
+        - id: tenant-service
+          uri: http://localhost:9001
+          predicates:
+            - Path=/api/v1/tenants/**
+        - id: notification-service
+          uri: http://localhost:9002
+          predicates:
+            - Path=/api/v1/notifications/**
+        - id: analytics-service
+          uri: http://localhost:9004
+          predicates:
+            - Path=/api/v1/analytics/**
+
+  # Disable Redis for unit tests
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+# Logging
+logging:
+  level:
+    root: WARN
+    org.example.gatewayservice: INFO
+    org.springframework.test: INFO
+    org.springframework.cloud.gateway: DEBUG
