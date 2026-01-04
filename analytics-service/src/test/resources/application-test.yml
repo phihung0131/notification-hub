@@ -1,0 +1,39 @@
+# Test configuration for Analytics Service
+spring:
+  application:
+    name: analytics-service-test
+
+  # H2 in-memory database
+  datasource:
+    url: jdbc:h2:mem:testdb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+
+  # Kafka test configuration
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: analytics-test-group
+      auto-offset-reset: earliest
+
+# App config
+app:
+  kafka:
+    topic:
+      requested: notification.requested
+      result: notification.result
+  batch:
+    size: 50
+    flush-interval: 5000
+
+# Logging
+logging:
+  level:
+    root: WARN
+    com.example.analyticsservice: INFO
