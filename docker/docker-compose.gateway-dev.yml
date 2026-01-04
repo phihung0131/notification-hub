@@ -1,0 +1,62 @@
+services:
+  gateway-service:
+    build:
+      context: ..
+      dockerfile: ./gateway-service/Dockerfile.dev
+    container_name: gateway-service
+    ports:
+      - "9000:8080" # Expose application port (main API gateway)
+      - "5000:5005" # Expose debug port
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      SPRING_DATA_REDIS_HOST: gateway-redis
+      SPRING_DATA_REDIS_PORT: 6379
+      TENANT_SERVICE_URL: http://tenant-service:8080
+      GRPC_TENANT_SERVICE_ADDRESS: static://tenant-service:9090
+      OTEL_SERVICE_NAME: gateway-service
+      OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_TRACES_EXPORTER: otlp
+      OTEL_METRICS_EXPORTER: none
+      OTEL_LOGS_EXPORTER: none
+      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=dev
+    depends_on:
+      - gateway-redis
+
+    # ===== WATCH MODE CONFIGURATION =====
+    develop:
+      watch:
+        - action: sync+restart
+          path: ../gateway-service/src
+          target: /app/gateway-service/src
+          ignore:
+            - node_modules
+            - target
+        - action: rebuild
+          path: ../gateway-service/pom.xml
+
+    # ===== VOLUME MOUNTS =====
+    volumes:
+      - ~/.m2:/root/.m2
+      - ../gateway-service/src:/app/gateway-service/src
+      - ../gateway-service/pom.xml:/app/gateway-service/pom.xml
+      - ../agents/opentelemetry-javaagent.jar:/otel-agent.jar:ro
+
+    networks:
+      - notification-net
+
+  gateway-redis:
+    image: redis:7
+    container_name: gateway-redis
+    restart: always
+    ports:
+      - "6000:6379" # Expose Redis port for debugging
+    networks:
+      - notification-net
+
+networks:
+  notification-net:
+    external: true
+
+# Note: Gateway service doesn't need its own database
+# It validates API keys via REST call to tenant-service

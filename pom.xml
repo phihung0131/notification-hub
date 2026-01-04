@@ -4,11 +4,31 @@
 
     <modelVersion>4.0.0</modelVersion>
 
+    <!-- Parent -->
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.4.0</version>
+        <relativePath/>
+    </parent>
+
+    <!-- Project Info -->
     <groupId>org.example</groupId>
     <artifactId>notification-hub</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-
     <packaging>pom</packaging>
+    <name>notification-hub</name>
+    <description>Multi-tenant notification platform with event-driven microservices</description>
+
+    <!-- Properties -->
+    <properties>
+        <java.version>21</java.version>
+        <maven.compiler.source>21</maven.compiler.source>
+        <maven.compiler.target>21</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <spotless.version>2.43.0</spotless.version>
+        <google-java-format.version>1.19.2</google-java-format.version>
+    </properties>
 
     <modules>
         <module>commons-shared</module>
@@ -52,5 +72,54 @@
         </profile>
     </profiles>
 
+    <build>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>com.diffplug.spotless</groupId>
+                    <artifactId>spotless-maven-plugin</artifactId>
+                    <version>${spotless.version}</version>
+                    <configuration>
+                        <java>
+                            <!-- Use Google Java Format -->
+                            <googleJavaFormat>
+                                <version>${google-java-format.version}</version>
+                                <style>AOSP</style> <!-- 4-space indentation -->
+                            </googleJavaFormat>
+
+                            <!-- Import order -->
+                            <importOrder>
+                                <order>java,javax,jakarta,org,com</order>
+                            </importOrder>
+
+                            <!-- Remove unused imports -->
+                            <removeUnusedImports/>
+
+                            <!-- Format specific files -->
+                            <includes>
+                                <include>src/main/java/**/*.java</include>
+                                <include>src/test/java/**/*.java</include>
+                            </includes>
+
+                            <!-- Exclude generated files -->
+                            <excludes>
+                                <exclude>**/target/**</exclude>
+                                <exclude>**/generated-sources/**</exclude>
+                            </excludes>
+                        </java>
+                    </configuration>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+
+        <plugins>
+            <!-- Apply Spotless to all modules automatically -->
+            <plugin>
+                <groupId>com.diffplug.spotless</groupId>
+                <artifactId>spotless-maven-plugin</artifactId>
+                <version>${spotless.version}</version>
+            </plugin>
+        </plugins>
+    </build>
 
 </project>

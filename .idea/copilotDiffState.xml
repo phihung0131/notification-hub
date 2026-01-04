@@ -3,14 +3,6 @@
   <component name="CopilotDiffPersistence">
     <option name="pendingDiffs">
       <map>
-        <entry key="$PROJECT_DIR$/tenant-service/src/test/java/org/example/tenantservice/repository/TenantRepositoryDataJpaTest.java">
-          <value>
-            <PendingDiffInfo>
-              <option name="filePath" value="$PROJECT_DIR$/tenant-service/src/test/java/org/example/tenantservice/repository/TenantRepositoryDataJpaTest.java" />
-              <option name="updatedContent" value="// ...existing code...&#10;package org.example.tenantservice.repository;&#10;&#10;import org.example.tenantservice.model.Tenant;&#10;import org.example.tenantservice.common.enums.Plan;&#10;import org.junit.jupiter.api.DisplayName;&#10;import org.junit.jupiter.api.Test;&#10;import org.springframework.beans.factory.annotation.Autowired;&#10;import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;&#10;&#10;import java.util.Optional;&#10;&#10;import static org.assertj.core.api.Assertions.assertThat;&#10;&#10;@DataJpaTest&#10;class TenantRepositoryDataJpaTest {&#10;&#10;    @Autowired&#10;    TenantRepository tenantRepository;&#10;&#10;    @Test&#10;    @DisplayName(&quot;save and findByEmail should work&quot;)&#10;    void saveAndFindByEmail() {&#10;        Tenant t = Tenant.builder()&#10;                .email(&quot;repo-test@example.com&quot;)&#10;                .name(&quot;Repo Test&quot;)&#10;                .password(&quot;pwd&quot;)&#10;                .plan(Plan.FREE)&#10;                .build();&#10;&#10;        Tenant saved = tenantRepository.save(t);&#10;        assertThat(saved.getId()).isNotNull();&#10;&#10;        Optional&lt;Tenant&gt; found = tenantRepository.findByEmail(&quot;repo-test@example.com&quot;);&#10;        assertThat(found).isPresent();&#10;        assertThat(found.get().getEmail()).isEqualTo(&quot;repo-test@example.com&quot;);&#10;    }&#10;}&#10;" />
-            </PendingDiffInfo>
-          </value>
-        </entry>
         <entry key="$PROJECT_DIR$/tenant-service/src/test/java/org/example/tenantservice/web/AuthControllerWebMvcTest.java">
           <value>
             <PendingDiffInfo>
