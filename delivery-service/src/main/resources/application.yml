@@ -74,3 +74,14 @@ logging:
     root: INFO
     org.example.deliveryservice: DEBUG
     org.springframework.kafka: WARN
+
+app:
+  kafka:
+    topic:
+      requested: notification.requested
+      result: notification.result
+      dlq: notification.dlq
+  delivery:
+    retry:
+      max-attempts: 3
+      initial-backoff-ms: 500

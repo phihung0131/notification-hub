@@ -1,10 +1,12 @@
 package com.example.deliveryservice.kafka.producer;
 
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.example.events.NotificationEvent;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
-import org.example.events.NotificationEvent;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
@@ -12,8 +14,19 @@ import org.example.events.NotificationEvent;
 public class KafkaProducerService {
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
-    public void sendMessage(NotificationEvent eventDto) {
-        log.info("Sending message to kafka: {}", eventDto);
-        kafkaTemplate.send("notification-topic", eventDto);
+    @Value("${app.kafka.topic.result}")
+    private String resultTopic;
+
+    @Value("${app.kafka.topic.dlq}")
+    private String dlqTopic;
+
+    public void sendResult(NotificationEvent event) {
+        log.info("Publishing delivery result to Kafka topic {}: {}", resultTopic, event);
+        kafkaTemplate.send(resultTopic, event.getId().toString(), event);
+    }
+
+    public void sendDlq(NotificationEvent event, String reason) {
+        log.warn("Publishing to DLQ {} for message {}: {}", dlqTopic, event.getId(), reason);
+        kafkaTemplate.send(dlqTopic, event.getId().toString(), event);
     }
 }
