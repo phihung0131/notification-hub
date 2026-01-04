@@ -1,10 +1,9 @@
-package org.example.gatewayservice.unit.service;
+package org.example.gatewayservice.service;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 import org.example.gatewayservice.model.ApiKeyValidationResponse;
-import org.example.gatewayservice.service.TenantValidationClient;
 import org.example.proto.tenant.TenantServiceGrpc;
 import org.example.proto.tenant.ValidateApiKeyRequest;
 import org.example.proto.tenant.ValidateApiKeyResponse;
