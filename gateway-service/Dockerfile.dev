@@ -1,0 +1,30 @@
+FROM maven:3.9.9-eclipse-temurin-21 AS dev
+
+WORKDIR /app
+
+# Copy parent POM first
+COPY pom.xml ./pom.xml
+
+# Install parent POM to local repository
+RUN mvn -q -B -N install
+
+# Copy commons-shared (includes proto & avro)
+COPY commons-shared/pom.xml ./commons-shared/pom.xml
+COPY ./commons-shared/src ./commons-shared/src
+
+# Build and install commons-shared
+WORKDIR /app/commons-shared
+RUN mvn -q -B -DskipTests clean install
+
+# Copy gateway-service POM ONLY
+COPY gateway-service/pom.xml /app/gateway-service/pom.xml
+
+# Resolve dependencies
+WORKDIR /app/gateway-service
+# RUN mvn -q -B -DskipTests dependency:go-offline
+
+EXPOSE 8080 5005
+
+ENTRYPOINT ["mvn", "spring-boot:run", \
+            "-Dspring-boot.run.fork=false", \
+            "-Dspring-boot.run.jvmArguments=-javaagent:/otel-agent.jar -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005"]

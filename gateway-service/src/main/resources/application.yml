@@ -1,0 +1,60 @@
+spring:
+  application:
+    name: gateway-service
+  cloud:
+    gateway:
+      grpc:
+        enabled: false  # Disable Spring Cloud Gateway's built-in gRPC support (we use grpc-client instead)
+      default-filters:
+        - name: RequestRateLimiter
+          args:
+            key-resolver: "#{@tenantKeyResolver}"
+            redis-rate-limiter.replenishRate: 50
+            redis-rate-limiter.burstCapacity: 100
+      routes:
+        - id: notification-service
+          uri: ${NOTIFICATION_SERVICE_URL:http://notification-service:8080}
+          predicates:
+            - Path=/api/v1/notifications/**
+        - id: analytics-service
+          uri: ${ANALYTICS_SERVICE_URL:http://analytics-service:8080}
+          predicates:
+            - Path=/api/v1/messages/**
+          filters:
+            - RewritePath=/api/v1/messages(?<segment>/?.*), /api/v1/analytics/messages${segment}
+        - id: tenant-service
+          uri: ${TENANT_SERVICE_URL:http://tenant-service:8080}
+          predicates:
+            - Path=/api/v1/tenants/**
+
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+grpc:
+  client:
+    tenant-service:
+      address: ${GRPC_TENANT_SERVICE_ADDRESS:static://tenant-service:9090}
+      negotiation-type: plaintext
+      enable-keep-alive: true
+
+app:
+  tenant-service:
+    url: ${TENANT_SERVICE_URL:http://tenant-service:8080}
+
+logging:
+  level:
+    root: INFO
+    org.example.gatewayservice: DEBUG
+    io.grpc: WARN
+
