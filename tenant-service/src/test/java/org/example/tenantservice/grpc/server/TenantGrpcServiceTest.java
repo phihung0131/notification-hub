@@ -292,9 +292,7 @@ class TenantGrpcServiceTest {
         assertInstanceOf(StatusRuntimeException.class, error);
         StatusRuntimeException statusException = (StatusRuntimeException) error;
         assertEquals(Status.Code.INVALID_ARGUMENT, statusException.getStatus().getCode());
-        assertNotNull(statusException
-                .getStatus()
-                .getDescription());
+        assertNotNull(statusException.getStatus().getDescription());
         assertTrue(
                 statusException
                         .getStatus()

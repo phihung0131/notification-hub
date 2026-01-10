@@ -12,9 +12,7 @@ import com.example.deliveryservice.service.model.DeliveryResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/**
- * Delivery Processor Service.
- */
+/** Delivery Processor Service. */
 @Service
 @RequiredArgsConstructor
 @Slf4j

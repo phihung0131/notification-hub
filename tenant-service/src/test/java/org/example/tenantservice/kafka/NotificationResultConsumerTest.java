@@ -56,9 +56,7 @@ class NotificationResultConsumerTest {
                         .build();
     }
 
-    /**
-     * Should consume SENT event and add to buffer
-     */
+    /** Should consume SENT event and add to buffer */
     @Test
     void consume_SentEvent_AddsToBuffer() {
         // Act
@@ -66,12 +64,13 @@ class NotificationResultConsumerTest {
 
         // Assert
         verify(acknowledgment).acknowledge();
-        assertEquals(1, ((List<?>) Objects.requireNonNull(ReflectionTestUtils.getField(consumer, "buffer"))).size());
+        assertEquals(
+                1,
+                ((List<?>) Objects.requireNonNull(ReflectionTestUtils.getField(consumer, "buffer")))
+                        .size());
     }
 
-    /**
-     * Should skip non-SENT events
-     */
+    /** Should skip non-SENT events */
     @Test
     void consume_NonSentEvent_Skips() {
         // Arrange
@@ -85,12 +84,13 @@ class NotificationResultConsumerTest {
 
         // Assert
         verify(acknowledgment).acknowledge();
-        assertEquals(0, ((List<?>) Objects.requireNonNull(ReflectionTestUtils.getField(consumer, "buffer"))).size());
+        assertEquals(
+                0,
+                ((List<?>) Objects.requireNonNull(ReflectionTestUtils.getField(consumer, "buffer")))
+                        .size());
     }
 
-    /**
-     * Should process events in batch and update quotas
-     */
+    /** Should process events in batch and update quotas */
     @Test
     void flushBuffer_Success() {
         // Arrange
@@ -122,9 +122,7 @@ class NotificationResultConsumerTest {
         verify(processedEventRepository).saveAll(anyList());
     }
 
-    /**
-     * Should skip already processed events (idempotency)
-     */
+    /** Should skip already processed events (idempotency) */
     @Test
     void flushBuffer_AlreadyProcessed_Skips() {
         // Arrange
@@ -140,9 +138,7 @@ class NotificationResultConsumerTest {
         verify(quotaService, never()).incrementQuotaUsed(anyString(), anyInt());
     }
 
-    /**
-     * Should handle multiple tenants correctly
-     */
+    /** Should handle multiple tenants correctly */
     @Test
     void flushBuffer_MultipleTenants_HandlesCorrectly() {
         // Arrange
@@ -181,9 +177,7 @@ class NotificationResultConsumerTest {
         verify(quotaService).incrementQuotaUsed(tenant2, 1);
     }
 
-    /**
-     * Should continue processing other tenants on error
-     */
+    /** Should continue processing other tenants on error */
     @Test
     void flushBuffer_ErrorForOneTenant_ContinuesOthers() {
         // Arrange

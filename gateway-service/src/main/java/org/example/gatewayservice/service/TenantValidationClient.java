@@ -54,7 +54,8 @@ public class TenantValidationClient {
 
                         return new ApiKeyValidationResponse(
                                 response.getTenantId(),
-                                Collections.emptySet() // Permissions not used in current implementation
+                                Collections.emptySet() // Permissions not used in current
+                                // implementation
                                 );
 
                     } catch (StatusRuntimeException e) {

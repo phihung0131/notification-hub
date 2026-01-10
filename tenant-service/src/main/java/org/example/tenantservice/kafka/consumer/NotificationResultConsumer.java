@@ -33,8 +33,8 @@ public class NotificationResultConsumer {
     private final QuotaService quotaService;
     private final ProcessedEventRepository processedEventRepository;
 
-//    @Value("${app.kafka.topic.result:notification.result}")
-//    private String resultTopic;
+    //    @Value("${app.kafka.topic.result:notification.result}")
+    //    private String resultTopic;
 
     @Value("${app.quota.batch-size:50}")
     private int batchSize;
@@ -47,8 +47,8 @@ public class NotificationResultConsumer {
     private final String NOTIFICATION_RESULT = "NOTIFICATION_RESULT";
 
     /**
-     * Consume notification result events. Only processes SENT status (successful delivery).
-     * Uses manual acknowledgment for at-least-once delivery guarantee.
+     * Consume notification result events. Only processes SENT status (successful delivery). Uses
+     * manual acknowledgment for at-least-once delivery guarantee.
      *
      * @param event notification event
      * @param acknowledgment Kafka acknowledgment
@@ -91,7 +91,8 @@ public class NotificationResultConsumer {
     }
 
     /**
-     * Scheduled flush - processes buffered events periodically. Runs every 5 seconds (configurable).
+     * Scheduled flush - processes buffered events periodically. Runs every 5 seconds
+     * (configurable).
      */
     @Scheduled(fixedDelayString = "${app.quota.flush-interval-ms:5000}")
     public void scheduledFlush() {
@@ -101,7 +102,8 @@ public class NotificationResultConsumer {
     }
 
     /**
-     * Flush buffered events and update quotas. Implements idempotency check to prevent duplicate processing.
+     * Flush buffered events and update quotas. Implements idempotency check to prevent duplicate
+     * processing.
      *
      * @param reason reason for flushing
      */

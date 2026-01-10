@@ -4,9 +4,7 @@ import org.example.events.NotificationEvent;
 
 import com.example.deliveryservice.service.model.DeliveryResult;
 
-/**
- * Strategy interface for channel-specific notification delivery.
- */
+/** Strategy interface for channel-specific notification delivery. */
 public interface DeliveryAdapter {
 
     /**

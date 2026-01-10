@@ -7,14 +7,13 @@ import org.example.notificationservice.dto.request.SendNotificationRequest;
 import org.example.notificationservice.dto.response.SendNotificationResponse;
 import org.example.notificationservice.service.NotificationOrchestrationService;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/**
- * REST controller for notification operations with fast response time (<50ms).
- */
+/** REST controller for notification operations with fast response time (<50ms). */
 @RestController
 @RequestMapping("/send")
 @RequiredArgsConstructor
@@ -32,8 +31,7 @@ public class NotificationController {
      * @return API response with message ID
      */
     @PostMapping
-    @ResponseStatus(HttpStatus.ACCEPTED)
-    public ApiResponse<SendNotificationResponse> send(
+    public ResponseEntity<ApiResponse<SendNotificationResponse>> send(
             @RequestBody @Valid SendNotificationRequest request,
             @RequestHeader("X-Tenant-Id") String tenantId) {
 
@@ -44,6 +42,6 @@ public class NotificationController {
 
         SendNotificationResponse response = orchestrationService.send(request, tenantId);
 
-        return ApiResponse.ok(response);
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(ApiResponse.ok(response));
     }
 }

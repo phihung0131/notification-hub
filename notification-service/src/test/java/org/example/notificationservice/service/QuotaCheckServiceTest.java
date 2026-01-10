@@ -7,7 +7,6 @@ import static org.mockito.Mockito.*;
 import java.time.Duration;
 
 import org.example.notificationservice.grpc.client.TenantServiceGrpcClient;
-import org.example.notificationservice.service.QuotaCheckService;
 import org.example.proto.tenant.CheckQuotaResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

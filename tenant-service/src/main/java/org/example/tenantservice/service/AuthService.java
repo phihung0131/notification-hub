@@ -27,9 +27,7 @@ import org.springframework.stereotype.Service;
 
 import lombok.RequiredArgsConstructor;
 
-/**
- * Service responsible for authentication, authorization, and tenant registration.
- */
+/** Service responsible for authentication, authorization, and tenant registration. */
 @Service
 @RequiredArgsConstructor
 public class AuthService {

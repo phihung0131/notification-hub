@@ -24,7 +24,6 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import com.example.analyticsservice.model.Message;
 import com.example.analyticsservice.repository.MessageRepository;
-import com.example.analyticsservice.service.MessageBatchService;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("MessageBatchService Unit Tests")

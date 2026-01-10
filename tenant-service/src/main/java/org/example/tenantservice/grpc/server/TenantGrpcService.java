@@ -11,9 +11,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.devh.boot.grpc.server.service.GrpcService;
 
-/**
- * gRPC service implementation for tenant operations with high-performance RPC endpoints.
- */
+/** gRPC service implementation for tenant operations with high-performance RPC endpoints. */
 @GrpcService
 @RequiredArgsConstructor
 @Slf4j

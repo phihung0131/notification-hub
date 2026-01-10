@@ -91,8 +91,8 @@ class AuthServiceTest {
         String password = "password123";
         String expectedToken = "jwt-token-xyz";
 
-//        UsernamePasswordAuthenticationToken authToken =
-//                new UsernamePasswordAuthenticationToken(email, password);
+        //        UsernamePasswordAuthenticationToken authToken =
+        //                new UsernamePasswordAuthenticationToken(email, password);
 
         when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
                 .thenReturn(authentication);
@@ -112,7 +112,8 @@ class AuthServiceTest {
         verify(jwtUtils).generateJwtToken(authentication);
 
         // Verify SecurityContext was updated
-//        ArgumentCaptor<Authentication> authCaptor = ArgumentCaptor.forClass(Authentication.class);
+        //        ArgumentCaptor<Authentication> authCaptor =
+        // ArgumentCaptor.forClass(Authentication.class);
         verify(authentication, never())
                 .setAuthenticated(anyBoolean()); // SecurityContextHolder handles this
     }
@@ -128,9 +129,7 @@ class AuthServiceTest {
                 .thenThrow(new BadCredentialsException("Invalid credentials"));
 
         // When & Then
-        assertThrows(
-                BadCredentialsException.class,
-                () -> authService.loginUser(email, password));
+        assertThrows(BadCredentialsException.class, () -> authService.loginUser(email, password));
 
         verify(authenticationManager).authenticate(any());
         verify(jwtUtils, never()).generateJwtToken(any());
@@ -187,8 +186,7 @@ class AuthServiceTest {
         // When & Then
         BaseException exception =
                 assertThrows(
-                        BaseException.class,
-                        () -> authService.registerNewTenant(createRequest));
+                        BaseException.class, () -> authService.registerNewTenant(createRequest));
 
         assertEquals(1000001, exception.getCode()); // EMAIL_NOT_AVAILABLE
         verify(tenantRepository).findByEmail("new@example.com");
@@ -249,9 +247,7 @@ class AuthServiceTest {
 
         // When & Then
         BaseException exception =
-                assertThrows(
-                        BaseException.class,
-                        () -> authService.validateApiKey(rawApiKey));
+                assertThrows(BaseException.class, () -> authService.validateApiKey(rawApiKey));
 
         assertEquals(1000002, exception.getCode()); // INVALID_API_KEY
         verify(apiKeyRepository).findByKey(rawApiKey);
@@ -272,9 +268,7 @@ class AuthServiceTest {
 
         // When & Then
         BaseException exception =
-                assertThrows(
-                        BaseException.class,
-                        () -> authService.validateApiKey(rawApiKey));
+                assertThrows(BaseException.class, () -> authService.validateApiKey(rawApiKey));
 
         assertEquals(1000009, exception.getCode()); // API_KEY_REVOKED
         verify(apiKeyRepository).findByKey(rawApiKey);
@@ -346,9 +340,7 @@ class AuthServiceTest {
 
         // When & Then
         BaseException exception =
-                assertThrows(
-                        BaseException.class,
-                        () -> authService.getCurrentUser());
+                assertThrows(BaseException.class, () -> authService.getCurrentUser());
 
         assertEquals(1000006, exception.getCode()); // UNAUTHORIZED
     }
@@ -363,9 +355,7 @@ class AuthServiceTest {
 
         // When & Then
         BaseException exception =
-                assertThrows(
-                        BaseException.class,
-                        () -> authService.getCurrentUser());
+                assertThrows(BaseException.class, () -> authService.getCurrentUser());
 
         assertEquals(1000006, exception.getCode()); // UNAUTHORIZED
     }
@@ -381,9 +371,7 @@ class AuthServiceTest {
 
         // When & Then
         BaseException exception =
-                assertThrows(
-                        BaseException.class,
-                        () -> authService.getCurrentUser());
+                assertThrows(BaseException.class, () -> authService.getCurrentUser());
 
         assertEquals(1000006, exception.getCode()); // UNAUTHORIZED
     }

@@ -17,9 +17,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 
-/**
- * Global filter for API key authentication and tenant context injection.
- */
+/** Global filter for API key authentication and tenant context injection. */
 @Component
 @RequiredArgsConstructor
 @Slf4j

@@ -11,7 +11,6 @@ import org.example.notificationservice.common.exception.ApiErrorMessage;
 import org.example.notificationservice.dto.request.SendNotificationRequest;
 import org.example.notificationservice.model.Channel;
 import org.example.notificationservice.repository.ChannelRepository;
-import org.example.notificationservice.service.NotificationValidationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

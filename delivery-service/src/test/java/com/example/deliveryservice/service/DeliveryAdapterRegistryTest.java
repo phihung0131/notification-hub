@@ -21,11 +21,12 @@ class DeliveryAdapterRegistryTest {
 
     @BeforeEach
     void setUp() {
-        List<DeliveryAdapter> adapters = List.of(
-                new MockEmailAdapter(),
-                new MockSmsAdapter(),
-                new MockTelegramAdapter(),
-                new MockDefaultAdapter());
+        List<DeliveryAdapter> adapters =
+                List.of(
+                        new MockEmailAdapter(),
+                        new MockSmsAdapter(),
+                        new MockTelegramAdapter(),
+                        new MockDefaultAdapter());
         registry = new DeliveryAdapterRegistry(adapters);
     }
 
