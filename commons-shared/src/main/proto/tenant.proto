@@ -9,6 +9,9 @@ service TenantService {
   // Validate API Key - Used by Gateway
   rpc ValidateApiKey (ValidateApiKeyRequest) returns (ValidateApiKeyResponse);
 
+  // Validate JWT - Used by Internal Services
+  rpc ValidateJwt (ValidateJwtRequest) returns (ValidateJwtResponse);
+
   // Check Quota - Used by Notification Service (pre-check)
   rpc CheckQuota (CheckQuotaRequest) returns (CheckQuotaResponse);
 }
@@ -23,6 +26,21 @@ message ValidateApiKeyResponse {
   string tenantId = 2;
   string status = 3; // ACTIVE, SUSPENDED
   string plan = 4; // FREE, PRO, ENTERPRISE
+  repeated string permissions = 5;
+}
+
+// Validate JWT Messages
+
+message ValidateJwtRequest {
+  string token = 1;
+}
+
+message ValidateJwtResponse {
+  bool isValid = 1;
+  string tenantId = 2;
+  string status = 3; // ACTIVE, SUSPENDED
+  string plan = 4; // FREE, PRO, ENTERPRISE
+  repeated string permissions = 5;
 }
 
 // Check Quota Messages

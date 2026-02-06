@@ -59,13 +59,6 @@
             <artifactId>hibernate-core</artifactId>
         </dependency>
 
-        <!-- Spring Security - for BadCredentialsException -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-security</artifactId>
-            <optional>true</optional>
-        </dependency>
-
         <!-- Avro - for Kafka event serialization -->
         <dependency>
             <groupId>org.apache.avro</groupId>

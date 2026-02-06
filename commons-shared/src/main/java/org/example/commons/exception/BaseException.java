@@ -4,59 +4,7 @@ import org.springframework.http.HttpStatus;
 
 import lombok.Getter;
 
-/**
- * Base exception class for all custom application exceptions in notification-hub services.
- *
- * <p>This exception extends {@link RuntimeException} and provides a structured way to propagate
- * errors with application-specific error codes, HTTP status codes, and optional details throughout
- * the microservices architecture.
- *
- * <h2>Design Rationale:</h2>
- *
- * <ul>
- *   <li>Extends RuntimeException to avoid checked exception handling boilerplate
- *   <li>Carries HTTP status for REST API responses via GlobalExceptionHandler
- *   <li>Includes application error codes for programmatic error handling
- *   <li>Supports optional details for debugging and client context
- * </ul>
- *
- * <h2>Usage Example:</h2>
- *
- * <pre>{@code
- * // Using service-specific error message enum
- * throw new BaseException(TenantErrorMessages.TENANT_NOT_FOUND);
- *
- * // Using custom error with details
- * throw new BaseException(
- *     40400,
- *     HttpStatus.NOT_FOUND,
- *     "Tenant not found",
- *     Map.of("tenantId", tenantId)
- * );
- * }</pre>
- *
- * <h2>Error Code Conventions:</h2>
- *
- * <p>Each service should define error codes in their own range:
- *
- * <ul>
- *   <li>1000xxx: Tenant Service (auth, quota, API keys)
- *   <li>2000xxx: Notification Service (orchestration, validation)
- *   <li>3000xxx: Delivery Service (channel adapters, delivery)
- *   <li>4000xxx: Analytics Service (message tracking, queries)
- *   <li>5000xxx: Gateway Service (routing, rate limiting)
- * </ul>
- *
- * <h2>Thread Safety:</h2>
- *
- * <p>Immutable after construction. Safe to throw across thread boundaries.
- *
- * @author Notification Hub Team
- * @version 1.0
- * @since 1.0
- * @see GlobalExceptionHandler
- * @see ApiError
- */
+/** Base exception class for all custom application exceptions in notification-hub services. */
 @Getter
 public class BaseException extends RuntimeException {
 
