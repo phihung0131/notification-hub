@@ -1,8 +1,11 @@
 package org.example.tenantservice.grpc.server;
 
+import java.util.List;
+
 import org.example.proto.tenant.*;
 import org.example.tenantservice.dto.TenantInfo;
 import org.example.tenantservice.service.ApiKeyValidationService;
+import org.example.tenantservice.service.AuthService;
 import org.example.tenantservice.service.QuotaService;
 
 import io.grpc.Status;
@@ -19,6 +22,7 @@ public class TenantGrpcService extends TenantServiceGrpc.TenantServiceImplBase {
 
     private final ApiKeyValidationService apiKeyValidationService;
     private final QuotaService quotaService;
+    private final AuthService authService;
 
     /**
      * Validate API Key - Used by Gateway. Fast authentication check with Redis caching.
@@ -54,6 +58,7 @@ public class TenantGrpcService extends TenantServiceGrpc.TenantServiceImplBase {
                                 .setTenantId("")
                                 .setStatus("")
                                 .setPlan("")
+                                .addAllPermissions(List.of())
                                 .build();
 
                 responseObserver.onNext(response);
@@ -68,6 +73,7 @@ public class TenantGrpcService extends TenantServiceGrpc.TenantServiceImplBase {
                             .setTenantId(tenantInfo.getTenantId())
                             .setStatus(tenantInfo.getStatus())
                             .setPlan(tenantInfo.getPlan().name())
+                            .addAllPermissions(tenantInfo.getPermissions())
                             .build();
 
             responseObserver.onNext(response);
@@ -80,6 +86,63 @@ public class TenantGrpcService extends TenantServiceGrpc.TenantServiceImplBase {
             responseObserver.onError(
                     Status.INTERNAL
                             .withDescription("Internal error during API key validation")
+                            .withCause(e)
+                            .asRuntimeException());
+        }
+    }
+
+    /**
+     * Validate JWT - Used by Gateway. Validates JWT and extracts tenant info and permissions.
+     *
+     * @param request ValidateJwtRequest
+     * @param responseObserver StreamObserver
+     */
+    @Override
+    public void validateJwt(
+            ValidateJwtRequest request, StreamObserver<ValidateJwtResponse> responseObserver) {
+
+        try {
+            log.debug("Received ValidateJwtRequest");
+
+            String token = request.getToken();
+            if (token.trim().isEmpty()) {
+                responseObserver.onError(
+                        Status.INVALID_ARGUMENT
+                                .withDescription("JWT token must be provided")
+                                .asRuntimeException());
+                return;
+            }
+
+            // Validate JWT
+            TenantInfo tenantInfo = authService.validateJwt(token);
+
+            if (tenantInfo == null) {
+                responseObserver.onError(
+                        Status.UNAUTHENTICATED
+                                .withDescription("Invalid JWT token")
+                                .asRuntimeException());
+                return;
+            }
+
+            ValidateJwtResponse response =
+                    ValidateJwtResponse.newBuilder()
+                            .setIsValid(true)
+                            .setTenantId(tenantInfo.getTenantId())
+                            .setStatus(tenantInfo.getStatus())
+                            .setPlan(tenantInfo.getPlan().name())
+                            .addAllPermissions(tenantInfo.getPermissions())
+                            .build();
+
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
+
+            log.debug("JWT validated successfully for tenant: {}", tenantInfo.getTenantId());
+
+        } catch (Exception e) {
+            log.error("Error validating JWT", e);
+            responseObserver.onError(
+                    Status.INTERNAL
+                            .withDescription("Internal error during JWT validation")
                             .withCause(e)
                             .asRuntimeException());
         }

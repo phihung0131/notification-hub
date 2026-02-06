@@ -57,7 +57,7 @@ public class SecurityConfig {
                                         .permitAll()
                                         .requestMatchers("/auth/internal/apikeys/validate")
                                         .permitAll()
-                                        .requestMatchers("/actuator")
+                                        .requestMatchers("/actuator/**")
                                         .permitAll()
 
                                         // 2. (Future) Public endpoints for specific roles

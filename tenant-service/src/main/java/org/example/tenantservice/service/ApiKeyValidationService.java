@@ -2,15 +2,18 @@ package org.example.tenantservice.service;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.stream.Collectors;
 
 import org.example.tenantservice.common.enums.TenantStatus;
 import org.example.tenantservice.dto.TenantInfo;
 import org.example.tenantservice.model.ApiKey;
+import org.example.tenantservice.model.Permission;
 import org.example.tenantservice.model.Tenant;
 import org.example.tenantservice.repository.ApiKeyRepository;
 import org.example.tenantservice.service.cache.CacheKeyGenerator;
 import org.example.tenantservice.service.cache.CacheService;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,6 +39,7 @@ public class ApiKeyValidationService {
      * @param rawApiKey the raw API key
      * @return TenantInfo if valid, null if invalid
      */
+    @Transactional(readOnly = true)
     public TenantInfo validateApiKey(String rawApiKey) {
         if (rawApiKey == null || rawApiKey.trim().isEmpty()) {
             log.warn("Empty API key validation attempt");
@@ -87,6 +91,10 @@ public class ApiKeyValidationService {
                             .plan(tenant.getPlan())
                             .quotaLimit(tenant.getQuotaLimit())
                             .quotaUsed(tenant.getQuotaUsed())
+                            .permissions(
+                                    apiKey.getPermissions().stream()
+                                            .map(Permission::getName)
+                                            .collect(Collectors.toList()))
                             .build();
 
             // Cache the result

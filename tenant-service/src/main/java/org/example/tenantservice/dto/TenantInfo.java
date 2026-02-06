@@ -1,6 +1,7 @@
 package org.example.tenantservice.dto;
 
 import java.io.Serializable;
+import java.util.List;
 
 import org.example.tenantservice.common.enums.Plan;
 
@@ -20,4 +21,5 @@ public class TenantInfo implements Serializable {
     private Plan plan;
     private Integer quotaLimit;
     private Integer quotaUsed;
+    private List<String> permissions;
 }

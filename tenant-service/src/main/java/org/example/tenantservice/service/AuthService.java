@@ -10,6 +10,7 @@ import org.example.tenantservice.common.enums.Plan;
 import org.example.tenantservice.common.exception.ApiErrorMessage;
 import org.example.tenantservice.config.security.CustomUserDetails;
 import org.example.tenantservice.config.security.JwtUtils;
+import org.example.tenantservice.dto.TenantInfo;
 import org.example.tenantservice.dto.request.TenantCreateRequest;
 import org.example.tenantservice.dto.response.ApiKeyValidationResponse;
 import org.example.tenantservice.model.ApiKey;
@@ -108,6 +109,37 @@ public class AuthService {
                         .build();
 
         return tenantRepository.save(tenant);
+    }
+
+    /**
+     * Validate JWT token and extract tenant info
+     *
+     * @param token the JWT token
+     * @return TenantInfo containing tenant details and permissions
+     */
+    public TenantInfo validateJwt(String token) {
+        if (!jwtUtils.validateJwtToken(token)) {
+            throw new BaseException(ApiErrorMessage.UNAUTHORIZED);
+        }
+
+        String email = jwtUtils.getUserNameFromJwtToken(token);
+
+        Tenant tenant =
+                tenantRepository
+                        .findByEmail(email)
+                        .orElseThrow(() -> new BaseException(ApiErrorMessage.UNAUTHORIZED));
+
+        return TenantInfo.builder()
+                .tenantId(tenant.getId())
+                .status(tenant.getStatus().name())
+                .plan(tenant.getPlan())
+                .quotaLimit(tenant.getQuotaLimit())
+                .quotaUsed(tenant.getQuotaUsed())
+                .permissions(
+                        tenant.getPermissions().stream()
+                                .map(Permission::getName)
+                                .collect(Collectors.toList()))
+                .build();
     }
 
     /**
