@@ -12,8 +12,6 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://analytics-db:5432/analytics_db
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
-      SPRING_DATA_REDIS_HOST: analytics-redis
-      SPRING_DATA_REDIS_PORT: 6379
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       SPRING_KAFKA_PROPERTIES_SCHEMA_REGISTRY_URL: http://schema-registry:8081
       SPRING_KAFKA_CONSUMER_GROUP_ID: analytics-consumer-group
@@ -27,7 +25,6 @@ services:
       OTEL_RESOURCE_ATTRIBUTES: deployment.environment=dev
     depends_on:
       - analytics-db
-      - analytics-redis
 
     # ===== WATCH MODE CONFIGURATION =====
     develop:
@@ -63,15 +60,6 @@ services:
       - "5504:5432"
     volumes:
       - analytics_pgdata:/var/lib/postgresql/data
-    networks:
-      - notification-net
-
-  analytics-redis:
-    image: redis:7
-    container_name: analytics-redis
-    restart: always
-    ports:
-      - "6004:6379"
     networks:
       - notification-net
 
