@@ -74,7 +74,7 @@ class NotificationOrchestrationServiceTest {
         String messageId = notificationId.toString();
 
         doNothing().when(validationService).validateRequest(request);
-        when(quotaCheckService.hasAvailableQuota(tenantId)).thenReturn(true);
+        when(quotaCheckService.hasAvailableQuota(tenantId)).thenReturn(1);
         when(channelRepository.findByCode("EMAIL")).thenReturn(Optional.of(emailChannel));
         when(notificationRepository.save(any(Notification.class)))
                 .thenAnswer(
@@ -148,7 +148,7 @@ class NotificationOrchestrationServiceTest {
     void send_QuotaExceeded_ThrowsException() {
         // Given
         doNothing().when(validationService).validateRequest(request);
-        when(quotaCheckService.hasAvailableQuota(tenantId)).thenReturn(false);
+        when(quotaCheckService.hasAvailableQuota(tenantId)).thenReturn(0);
 
         // When & Then
         BaseException exception =
@@ -171,7 +171,7 @@ class NotificationOrchestrationServiceTest {
     void send_ChannelNotFound_ThrowsException() {
         // Given
         doNothing().when(validationService).validateRequest(request);
-        when(quotaCheckService.hasAvailableQuota(tenantId)).thenReturn(true);
+        when(quotaCheckService.hasAvailableQuota(tenantId)).thenReturn(1);
         when(channelRepository.findByCode("EMAIL")).thenReturn(Optional.empty());
 
         // When & Then
@@ -195,7 +195,7 @@ class NotificationOrchestrationServiceTest {
     void send_DatabaseSaveFails_RollsBackTransaction() {
         // Given
         doNothing().when(validationService).validateRequest(request);
-        when(quotaCheckService.hasAvailableQuota(tenantId)).thenReturn(true);
+        when(quotaCheckService.hasAvailableQuota(tenantId)).thenReturn(1);
         when(channelRepository.findByCode("EMAIL")).thenReturn(Optional.of(emailChannel));
         when(notificationRepository.save(any(Notification.class)))
                 .thenThrow(new RuntimeException("Database connection failed"));
@@ -222,7 +222,7 @@ class NotificationOrchestrationServiceTest {
         String messageId = notificationId.toString();
 
         doNothing().when(validationService).validateRequest(request);
-        when(quotaCheckService.hasAvailableQuota(tenantId)).thenReturn(true);
+        when(quotaCheckService.hasAvailableQuota(tenantId)).thenReturn(1);
         when(channelRepository.findByCode("EMAIL")).thenReturn(Optional.of(emailChannel));
         when(notificationRepository.save(any(Notification.class)))
                 .thenAnswer(
@@ -273,7 +273,7 @@ class NotificationOrchestrationServiceTest {
             String messageId = notificationId.toString();
 
             doNothing().when(validationService).validateRequest(request);
-            when(quotaCheckService.hasAvailableQuota(tenantId)).thenReturn(true);
+            when(quotaCheckService.hasAvailableQuota(tenantId)).thenReturn(1);
             when(channelRepository.findByCode(channelCode)).thenReturn(Optional.of(channel));
             when(notificationRepository.save(any(Notification.class)))
                     .thenAnswer(
@@ -308,7 +308,7 @@ class NotificationOrchestrationServiceTest {
         String messageId = notificationId.toString();
 
         doNothing().when(validationService).validateRequest(request);
-        when(quotaCheckService.hasAvailableQuota(tenantId)).thenReturn(true);
+        when(quotaCheckService.hasAvailableQuota(tenantId)).thenReturn(1);
         when(channelRepository.findByCode("EMAIL")).thenReturn(Optional.of(emailChannel));
         when(notificationRepository.save(any(Notification.class)))
                 .thenAnswer(
@@ -339,7 +339,7 @@ class NotificationOrchestrationServiceTest {
         String messageId = notificationId.toString();
 
         doNothing().when(validationService).validateRequest(request);
-        when(quotaCheckService.hasAvailableQuota(tenantId)).thenReturn(true);
+        when(quotaCheckService.hasAvailableQuota(tenantId)).thenReturn(1);
         when(channelRepository.findByCode("EMAIL")).thenReturn(Optional.of(emailChannel));
         when(notificationRepository.save(any(Notification.class)))
                 .thenAnswer(

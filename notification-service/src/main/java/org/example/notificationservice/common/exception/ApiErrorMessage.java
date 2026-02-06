@@ -29,7 +29,9 @@ public class ApiErrorMessage {
                             2000007, "Content cannot be empty.", HttpStatus.BAD_REQUEST),
             CONTENT_TOO_LONG =
                     new ApiErrorMessage(
-                            2000008, "Content exceeds maximum length.", HttpStatus.BAD_REQUEST);
+                            2000008, "Content exceeds maximum length.", HttpStatus.BAD_REQUEST),
+            CHANNEL_EXISTED =
+                    new ApiErrorMessage(2000008, "Channel existed.", HttpStatus.BAD_REQUEST);
 
     protected final int code;
     protected final String message;

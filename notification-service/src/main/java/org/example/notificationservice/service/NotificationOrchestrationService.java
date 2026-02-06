@@ -48,7 +48,7 @@ public class NotificationOrchestrationService {
         validationService.validateRequest(request);
 
         // Step 2: Check quota (fail-fast if no quota)
-        if (!quotaCheckService.hasAvailableQuota(tenantId)) {
+        if (quotaCheckService.hasAvailableQuota(tenantId) <= 0) {
             log.warn("Quota exceeded for tenant: {}", tenantId);
             throw new BaseException(ApiErrorMessage.QUOTA_EXCEEDED);
         }
@@ -68,7 +68,10 @@ public class NotificationOrchestrationService {
         // Step 5: Publish to Kafka
         String messageId = publisherService.publishNotification(notification);
 
-        // Step 6: Build and return response
+        // Step 6: Decrement quota (asynchronously)
+        quotaCheckService.decrementQuotaAsync(tenantId);
+
+        // Step 7: Build and return response
         SendNotificationResponse response =
                 SendNotificationResponse.builder()
                         .id(messageId)

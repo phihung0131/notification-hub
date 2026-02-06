@@ -25,19 +25,19 @@ public class QuotaCheckService {
     private final RedisTemplate<String, Object> redisTemplate;
 
     private static final String QUOTA_CACHE_PREFIX = "notification:quota:";
-    private static final Duration QUOTA_CACHE_TTL = Duration.ofMinutes(5);
+    private static final Duration QUOTA_CACHE_TTL = Duration.ofMinutes(1);
 
     /**
      * Check if tenant has available quota. Uses Redis cache for performance (<5ms response time).
      *
      * @param tenantId tenant ID
-     * @return true if quota is available
+     * @return remaining quota count or true if allowed
      */
-    public boolean hasAvailableQuota(String tenantId) {
+    public Integer hasAvailableQuota(String tenantId) {
         try {
             // Check cache first
             String cacheKey = QUOTA_CACHE_PREFIX + tenantId;
-            Boolean cachedResult = (Boolean) redisTemplate.opsForValue().get(cacheKey);
+            Integer cachedResult = (Integer) redisTemplate.opsForValue().get(cacheKey);
 
             if (cachedResult != null) {
                 log.debug("Quota check cache hit for tenant: {}", tenantId);
@@ -48,30 +48,41 @@ public class QuotaCheckService {
             log.debug("Quota check cache miss for tenant: {}, calling gRPC", tenantId);
             CheckQuotaResponse response = tenantServiceGrpcClient.checkQuota(tenantId);
 
-            boolean hasQuota = response.getIsAllowed();
+            Integer remainingQuota = response.getRemaining();
 
             // Cache the result
-            redisTemplate.opsForValue().set(cacheKey, hasQuota, QUOTA_CACHE_TTL);
+            redisTemplate.opsForValue().set(cacheKey, remainingQuota, QUOTA_CACHE_TTL);
 
             log.info(
                     "Quota check for tenant {}: allowed={}, remaining={}/{}",
                     tenantId,
-                    hasQuota,
+                    remainingQuota,
                     response.getRemaining(),
                     response.getLimit());
 
-            return hasQuota;
+            return remainingQuota;
 
         } catch (StatusRuntimeException e) {
             log.error("gRPC error checking quota for tenant {}: {}", tenantId, e.getMessage());
             // Fail-open: allow request to prevent blocking legitimate users on service error
-            return true;
+            return 1;
 
         } catch (Exception e) {
             log.error("Error checking quota for tenant {}: {}", tenantId, e.getMessage(), e);
             // Fail-open
-            return true;
+            return 1;
         }
+    }
+
+    /**
+     * Decrement quota asynchronously for tenant. Called after successful notification send.
+     *
+     * @param tenantId tenant ID
+     */
+    public void decrementQuotaAsync(String tenantId) {
+        log.info("Asynchronously decrementing quota for tenant: {}", tenantId);
+        String cacheKey = QUOTA_CACHE_PREFIX + tenantId;
+        redisTemplate.opsForValue().decrement(cacheKey);
     }
 
     /**
