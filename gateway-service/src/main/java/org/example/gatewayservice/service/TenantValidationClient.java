@@ -1,11 +1,14 @@
 package org.example.gatewayservice.service;
 
-import java.util.Collections;
+import java.util.HashSet;
 
 import org.example.gatewayservice.model.ApiKeyValidationResponse;
+import org.example.gatewayservice.model.JwtValidationResponse;
 import org.example.proto.tenant.TenantServiceGrpc;
 import org.example.proto.tenant.ValidateApiKeyRequest;
 import org.example.proto.tenant.ValidateApiKeyResponse;
+import org.example.proto.tenant.ValidateJwtRequest;
+import org.example.proto.tenant.ValidateJwtResponse;
 import org.springframework.stereotype.Component;
 
 import io.grpc.StatusRuntimeException;
@@ -54,13 +57,42 @@ public class TenantValidationClient {
 
                         return new ApiKeyValidationResponse(
                                 response.getTenantId(),
-                                Collections.emptySet() // Permissions not used in current
-                                // implementation
-                                );
+                                new HashSet<>(response.getPermissionsList()));
 
                     } catch (StatusRuntimeException e) {
                         log.error("gRPC error validating API key: {}", e.getMessage());
                         throw new RuntimeException("API key validation failed", e);
+                    }
+                });
+    }
+
+    public Mono<JwtValidationResponse> validateJwt(String token) {
+        return Mono.fromCallable(
+                () -> {
+                    try {
+                        log.debug("Validating Jwt via gRPC: {}...", maskApiKey(token));
+
+                        ValidateJwtRequest request =
+                                ValidateJwtRequest.newBuilder().setToken(token).build();
+
+                        ValidateJwtResponse response = tenantServiceStub.validateJwt(request);
+
+                        if (!response.getIsValid()) {
+                            log.warn("Invalid Jwt: {}...", maskApiKey(token));
+                            throw new RuntimeException("Invalid Jwt");
+                        }
+
+                        log.debug(
+                                "Jwt validated successfully for tenant: {}",
+                                response.getTenantId());
+
+                        return new JwtValidationResponse(
+                                response.getTenantId(),
+                                new HashSet<>(response.getPermissionsList()));
+
+                    } catch (StatusRuntimeException e) {
+                        log.error("gRPC error validating Jwt: {}", e.getMessage());
+                        throw new RuntimeException("Jwt validation failed", e);
                     }
                 });
     }

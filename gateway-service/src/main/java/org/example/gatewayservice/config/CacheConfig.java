@@ -1,4 +1,4 @@
-package com.example.deliveryservice.config;
+package org.example.gatewayservice.config;
 
 import java.time.Duration;
 
@@ -7,11 +7,8 @@ import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.cache.RedisCacheConfiguration;
-import org.springframework.data.redis.connection.RedisConnectionFactory;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializationContext.SerializationPair;
-import org.springframework.data.redis.serializer.StringRedisSerializer;
 
 @Configuration
 @EnableCaching
@@ -30,7 +27,7 @@ public class CacheConfig {
                         SerializationPair.fromSerializer(new GenericJackson2JsonRedisSerializer()));
     }
 
-    /** Custom TTL for specific caches */
+    /** Specific cache configurations for different caches with custom TTLs. */
     @Bean
     public RedisCacheManagerBuilderCustomizer redisCacheManagerBuilderCustomizer() {
         return (builder) ->
@@ -48,26 +45,5 @@ public class CacheConfig {
                                         .serializeValuesWith(
                                                 SerializationPair.fromSerializer(
                                                         new GenericJackson2JsonRedisSerializer())));
-    }
-
-    /**
-     * RedisTemplate configuration with String serialization for keys and JSON serialization for
-     * values.
-     */
-    @Bean
-    public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory connectionFactory) {
-        RedisTemplate<String, Object> template = new RedisTemplate<>();
-        template.setConnectionFactory(connectionFactory);
-
-        // Key serialize = string
-        template.setKeySerializer(new StringRedisSerializer());
-        template.setHashKeySerializer(new StringRedisSerializer());
-
-        // Value serialize = JSON
-        template.setValueSerializer(new GenericJackson2JsonRedisSerializer());
-        template.setHashValueSerializer(new GenericJackson2JsonRedisSerializer());
-
-        template.afterPropertiesSet();
-        return template;
     }
 }
