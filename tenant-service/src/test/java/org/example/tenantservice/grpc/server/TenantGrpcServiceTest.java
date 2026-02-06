@@ -1,10 +1,20 @@
 package org.example.tenantservice.grpc.server;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
-import org.example.proto.tenant.*;
+import org.example.proto.tenant.CheckQuotaRequest;
+import org.example.proto.tenant.CheckQuotaResponse;
+import org.example.proto.tenant.ValidateApiKeyRequest;
+import org.example.proto.tenant.ValidateApiKeyResponse;
 import org.example.tenantservice.common.enums.Plan;
 import org.example.tenantservice.common.enums.TenantStatus;
 import org.example.tenantservice.dto.TenantInfo;

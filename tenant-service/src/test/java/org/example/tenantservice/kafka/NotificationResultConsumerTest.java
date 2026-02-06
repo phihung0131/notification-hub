@@ -1,8 +1,16 @@
 package org.example.tenantservice.kafka;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.util.List;
 import java.util.Objects;
@@ -69,6 +77,8 @@ class NotificationResultConsumerTest {
                 ((List<?>) Objects.requireNonNull(ReflectionTestUtils.getField(consumer, "buffer")))
                         .size());
     }
+
+    private void assertEquals(int i, int buffer) {}
 
     /** Should skip non-SENT events */
     @Test

@@ -1,6 +1,10 @@
 package org.example.commons.exception;
 
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 /** Standard API error response structure used across all services. */
 @Getter

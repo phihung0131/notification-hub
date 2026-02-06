@@ -2,7 +2,13 @@ package org.example.tenantservice.grpc.server;
 
 import java.util.List;
 
-import org.example.proto.tenant.*;
+import org.example.proto.tenant.CheckQuotaRequest;
+import org.example.proto.tenant.CheckQuotaResponse;
+import org.example.proto.tenant.TenantServiceGrpc;
+import org.example.proto.tenant.ValidateApiKeyRequest;
+import org.example.proto.tenant.ValidateApiKeyResponse;
+import org.example.proto.tenant.ValidateJwtRequest;
+import org.example.proto.tenant.ValidateJwtResponse;
 import org.example.tenantservice.dto.TenantInfo;
 import org.example.tenantservice.service.ApiKeyValidationService;
 import org.example.tenantservice.service.AuthService;

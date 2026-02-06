@@ -3,7 +3,15 @@ package org.example.tenantservice.config.logger;
 import java.time.Duration;
 import java.time.Instant;
 
-import io.grpc.*;
+import io.grpc.CallOptions;
+import io.grpc.Channel;
+import io.grpc.ClientCall;
+import io.grpc.ClientInterceptor;
+import io.grpc.ForwardingClientCall;
+import io.grpc.ForwardingClientCallListener;
+import io.grpc.Metadata;
+import io.grpc.MethodDescriptor;
+import io.grpc.Status;
 import lombok.extern.slf4j.Slf4j;
 
 /** gRPC Client Interceptor - logs outgoing gRPC requests */
@@ -22,7 +30,7 @@ public class GrpcClientLoggingInterceptor implements ClientInterceptor {
             private Instant startTime;
 
             @Override
-            public void start(Listener<RespT> responseListener, Metadata headers) {
+            public void start(ClientCall.Listener<RespT> responseListener, Metadata headers) {
                 startTime = Instant.now();
                 log.info(
                         "[OUTGOING gRPC CLIENT] Service: {} | Method: {}", serviceName, methodName);

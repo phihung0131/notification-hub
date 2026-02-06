@@ -6,7 +6,11 @@ import org.example.commons.exception.ApiError;
 
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.SpanContext;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 /**
  * Standard API response wrapper for all REST endpoints across notification-hub services.
