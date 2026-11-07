@@ -55,6 +55,36 @@
       "name": "createdAt",
       "type": ["null", { "type": "long", "logicalType": "timestamp-millis" }],
       "default": null
+    },
+    {
+      "name": "priority",
+      "doc": "Priority lane: HIGH | NORMAL | LOW. Null means NORMAL. Added in v2 (optional).",
+      "type": ["null", "string"],
+      "default": null
+    },
+    {
+      "name": "idempotencyKey",
+      "doc": "Client Idempotency-Key (per tenant). Added in v2 (optional).",
+      "type": ["null", "string"],
+      "default": null
+    },
+    {
+      "name": "requestFingerprint",
+      "doc": "SHA-256 of the canonical request payload; used to detect key reuse with a different payload. Added in v2 (optional).",
+      "type": ["null", "string"],
+      "default": null
+    },
+    {
+      "name": "version",
+      "doc": "Monotonic event version of the notification state (guards against out-of-order events). Added in v2 (optional).",
+      "type": ["null", "int"],
+      "default": null
+    },
+    {
+      "name": "eventTimestamp",
+      "doc": "When this event was produced. Added in v2 (optional).",
+      "type": ["null", { "type": "long", "logicalType": "timestamp-millis" }],
+      "default": null
     }
   ]
 }

@@ -9,10 +9,16 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     open-in-view: false
     properties:
       hibernate.format_sql: true
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    baseline-version: 0
+    locations: classpath:db/migration
 
   data:
     redis:
@@ -36,10 +42,18 @@ spring:
       value-serializer: io.confluent.kafka.serializers.KafkaAvroSerializer
       properties:
         auto.register.schemas: true
+        # durability: all in-sync replicas ack, and retries cannot duplicate or reorder
+        acks: all
+        enable.idempotence: true
+        max.in.flight.requests.per.connection: 5
+        linger.ms: 5
+        compression.type: lz4
     consumer:
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: io.confluent.kafka.serializers.KafkaAvroDeserializer
       group-id: ${SPRING_KAFKA_CONSUMER_GROUP_ID}
+      enable-auto-commit: false
+      max-poll-records: 500
       properties:
         specific.avro.reader: true
       auto-offset-reset: earliest
@@ -84,3 +98,21 @@ app:
   kafka:
     topic:
       requested: notification.requested
+      result: ${APP_KAFKA_TOPIC_RESULT:notification.result}
+
+notification:
+  # outbox | kafka-first  (ADR 0005). Default outbox: durable first, relay publishes.
+  write-mode: ${NOTIFICATION_WRITE_MODE:outbox}
+  idempotency:
+    key-ttl: PT24H
+    in-flight-ttl: PT60S
+    default-mode: HEADER_ONLY # HEADER_ONLY | HEADER_FIRST (hash fallback); per tenant override in table
+    hash-window: PT60S
+  quota:
+    deadline-ms: 1000 # gRPC deadline to tenant-service; on timeout the request fails closed (503)
+    reservation-ttl-seconds: 900
+  outbox:
+    poll-interval-ms: 100
+    batch-size: 200
+  kafka:
+    send-timeout-ms: 5000

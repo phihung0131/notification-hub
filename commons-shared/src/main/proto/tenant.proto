@@ -14,6 +14,12 @@ service TenantService {
 
   // Check Quota - Used by Notification Service (pre-check)
   rpc CheckQuota (CheckQuotaRequest) returns (CheckQuotaResponse);
+
+  // Exact quota (reserve / commit / release). tenant-service owns limits and the ledger.
+  // Reserve is atomic (Redis Lua) and idempotent per reservationId. Commit/Release are idempotent.
+  rpc ReserveQuota (ReserveQuotaRequest) returns (ReserveQuotaResponse);
+  rpc CommitQuota (CommitQuotaRequest) returns (CommitQuotaResponse);
+  rpc ReleaseQuota (ReleaseQuotaRequest) returns (ReleaseQuotaResponse);
 }
 
 // Validate API Key Messages
@@ -52,4 +58,37 @@ message CheckQuotaResponse {
   bool isAllowed = 1;
   int32 remaining = 2;
   int32 limit = 3;
+}
+
+// Exact quota messages
+message ReserveQuotaRequest {
+  string tenantId = 1;
+  string reservationId = 2; // use the notification id: makes retries idempotent
+  int32 ttlSeconds = 3;     // hold expires automatically (crash safety); 0 = server default
+}
+
+message ReserveQuotaResponse {
+  bool granted = 1;
+  string reason = 2; // OK | QUOTA_EXCEEDED | UNKNOWN_TENANT
+  int32 remaining = 3; // limit - used - held (-1 when unlimited)
+  int32 limit = 4;     // -1 when unlimited
+}
+
+message CommitQuotaRequest {
+  string tenantId = 1;
+  string reservationId = 2;
+}
+
+message CommitQuotaResponse {
+  bool committed = 1; // false when it was a duplicate (already counted) or limit was reached
+  string reason = 2;  // COMMITTED | DUPLICATE | LIMIT_REACHED | UNKNOWN_TENANT
+}
+
+message ReleaseQuotaRequest {
+  string tenantId = 1;
+  string reservationId = 2;
+}
+
+message ReleaseQuotaResponse {
+  bool released = 1; // false when nothing was held (expired or already released)
 }
