@@ -5,6 +5,8 @@ import java.util.List;
 import org.example.commons.baseclass.ApiResponse;
 import org.example.commons.exception.ApiError;
 import org.example.gatewayservice.common.exception.ApiErrorMessage;
+import org.example.gatewayservice.exception.InvalidCredentialsException;
+import org.example.gatewayservice.exception.TenantServiceUnavailableException;
 import org.example.gatewayservice.service.TenantValidationClient;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
@@ -40,6 +42,18 @@ public class AuthFilter implements GlobalFilter, Ordered {
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
+        // Never trust identity headers from the outside: the gateway is the only writer.
+        exchange =
+                exchange.mutate()
+                        .request(
+                                r ->
+                                        r.headers(
+                                                h -> {
+                                                    h.remove("X-Tenant-Id");
+                                                    h.remove("X-Permissions");
+                                                    h.remove("X-Auth-Method");
+                                                }))
+                        .build();
         String path = exchange.getRequest().getPath().value();
 
         if (isWhitelisted(path)) {
@@ -79,10 +93,10 @@ public class AuthFilter implements GlobalFilter, Ordered {
                             return chain.filter(exchange.mutate().request(mutated).build());
                         })
                 .onErrorResume(
-                        ex -> {
-                            log.warn("API key validation failed: {}", ex.getMessage());
-                            return unauthorized(exchange, "Invalid API key");
-                        });
+                        InvalidCredentialsException.class,
+                        ex -> unauthorized(exchange, "Invalid API key"))
+                .onErrorResume(
+                        TenantServiceUnavailableException.class, ex -> unavailable(exchange));
     }
 
     private Mono<Void> handleJwtAuth(ServerWebExchange exchange, GatewayFilterChain chain) {
@@ -110,10 +124,10 @@ public class AuthFilter implements GlobalFilter, Ordered {
                             return chain.filter(exchange.mutate().request(mutated).build());
                         })
                 .onErrorResume(
-                        ex -> {
-                            log.warn("JWT validation failed: {}", ex.getMessage());
-                            return unauthorized(exchange, "Invalid JWT token");
-                        });
+                        InvalidCredentialsException.class,
+                        ex -> unauthorized(exchange, "Invalid JWT token"))
+                .onErrorResume(
+                        TenantServiceUnavailableException.class, ex -> unavailable(exchange));
     }
 
     private Mono<Void> handleBothAuth(ServerWebExchange exchange, GatewayFilterChain chain) {
@@ -155,15 +169,36 @@ public class AuthFilter implements GlobalFilter, Ordered {
     }
 
     private Mono<Void> unauthorized(ServerWebExchange exchange, String message) {
+        return writeError(
+                exchange,
+                HttpStatus.UNAUTHORIZED,
+                ApiErrorMessage.AUTHENTICATE_VALIDATION_FAILED.getCode(),
+                message,
+                "Jwt token or API key is invalid or missing");
+    }
+
+    /** tenant-service gave no verdict: tell the client to retry, do not blame its credentials. */
+    private Mono<Void> unavailable(ServerWebExchange exchange) {
+        exchange.getResponse().getHeaders().set(HttpHeaders.RETRY_AFTER, "1");
+        return writeError(
+                exchange,
+                HttpStatus.SERVICE_UNAVAILABLE,
+                ApiErrorMessage.TENANT_SERVICE_UNAVAILABLE.getCode(),
+                "Authentication service temporarily unavailable",
+                "Retry shortly");
+    }
+
+    private Mono<Void> writeError(
+            ServerWebExchange exchange,
+            HttpStatus status,
+            int code,
+            String message,
+            String details) {
         ApiResponse<Object> apiResponse =
                 ApiResponse.fail(
-                        ApiError.builder()
-                                .code(ApiErrorMessage.AUTHENTICATE_VALIDATION_FAILED.getCode())
-                                .message(message)
-                                .details("Jwt token or API key is invalid or missing")
-                                .build());
+                        ApiError.builder().code(code).message(message).details(details).build());
 
-        exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
+        exchange.getResponse().setStatusCode(status);
         exchange.getResponse()
                 .getHeaders()
                 .setContentType(org.springframework.http.MediaType.APPLICATION_JSON);
@@ -180,10 +215,16 @@ public class AuthFilter implements GlobalFilter, Ordered {
         }
     }
 
+    /**
+     * Must run before RequestRateLimiter (default filters start at order 1) so the per-tenant key
+     * resolver sees the X-Tenant-Id written here.
+     */
     @Override
     public int getOrder() {
-        return -1; // run early
+        return ORDER;
     }
+
+    public static final int ORDER = -100;
 
     enum AuthMethod {
         API_KEY,
@@ -195,7 +236,7 @@ public class AuthFilter implements GlobalFilter, Ordered {
     @Component
     @ConfigurationProperties(prefix = "app.auth")
     @Data
-    static class AuthConfig {
+    public static class AuthConfig {
         private String defaultMethod = "JWT";
         private List<RouteAuth> routes = List.of();
 

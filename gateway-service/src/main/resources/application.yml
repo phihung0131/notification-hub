@@ -3,14 +3,20 @@ spring:
     name: gateway-service
   cloud:
     gateway:
+      httpclient:
+        connect-timeout: ${GATEWAY_CONNECT_TIMEOUT_MS:2000}
+        response-timeout: ${GATEWAY_RESPONSE_TIMEOUT:10s}
       grpc:
         enabled: false  # Disable Spring Cloud Gateway's built-in gRPC support (we use grpc-client instead)
       default-filters:
         - name: RequestRateLimiter
           args:
             key-resolver: "#{@tenantKeyResolver}"
-            redis-rate-limiter.replenishRate: 50000
-            redis-rate-limiter.burstCapacity: 10000
+            rate-limiter: "#{@meteredRedisRateLimiter}"
+            # Per tenant: sustained rate / burst (burst must be >= replenish). 429 when exhausted.
+            redis-rate-limiter.replenishRate: ${GATEWAY_RATE_LIMIT_REPLENISH_RATE:100}
+            redis-rate-limiter.burstCapacity: ${GATEWAY_RATE_LIMIT_BURST_CAPACITY:200}
+            redis-rate-limiter.requestedTokens: 1
       routes:
         - id: notification-service
           uri: ${NOTIFICATION_SERVICE_URL:http://notification-service:8080}
@@ -51,7 +57,14 @@ grpc:
 app:
   tenant-service:
     url: ${TENANT_SERVICE_URL:http://tenant-service:8080}
+    grpc-deadline: ${GATEWAY_TENANT_GRPC_DEADLINE:2s}
+  rate-limit:
+    redis-timeout: ${GATEWAY_RATE_LIMIT_REDIS_TIMEOUT:200ms}   # fail-open on timeout/error
   auth:
+    cache:
+      ttl: ${GATEWAY_AUTH_CACHE_TTL:30s}              # max API-key revocation lag
+      negative-ttl: ${GATEWAY_AUTH_NEGATIVE_CACHE_TTL:5s}
+      max-size: 10000
     default-method: JWT
     routes:
       - pattern: "/api/v1/notifications/**"
