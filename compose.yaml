@@ -10,6 +10,9 @@ x-java-service: &java-service
   restart: unless-stopped
   environment: &java-env
     SPRING_PROFILES_ACTIVE: docker
+    # Synchronous console logging was the first throughput bottleneck (all HTTP threads blocked on the
+    # Logback appender lock). Quiet by default; use LOG_LEVEL=DEBUG when debugging.
+    LOGGING_LEVEL_ROOT: ${ROOT_LOG_LEVEL:-WARN}
     SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     SPRING_KAFKA_PROPERTIES_SCHEMA_REGISTRY_URL: http://schema-registry:8081
     JAVA_TOOL_OPTIONS: ${OTEL_AGENT_OPTS:-}
@@ -150,6 +153,7 @@ services:
     environment:
       <<: *java-env
       OTEL_SERVICE_NAME: tenant-service
+      LOGGING_LEVEL_ORG_EXAMPLE_TENANTSERVICE: ${LOG_LEVEL:-WARN}
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/tenant_db
       SPRING_DATASOURCE_USERNAME: tenant
       SPRING_DATASOURCE_PASSWORD: ${TENANT_DB_PASSWORD:-tenant}
@@ -178,6 +182,7 @@ services:
     environment:
       <<: *java-env
       OTEL_SERVICE_NAME: notification-service
+      LOGGING_LEVEL_ORG_EXAMPLE_NOTIFICATIONSERVICE: ${LOG_LEVEL:-WARN}
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/notification_db
       SPRING_DATASOURCE_USERNAME: notification
       SPRING_DATASOURCE_PASSWORD: ${NOTIFICATION_DB_PASSWORD:-notification}
@@ -206,6 +211,7 @@ services:
     environment:
       <<: *java-env
       OTEL_SERVICE_NAME: delivery-service
+      LOGGING_LEVEL_ORG_EXAMPLE_DELIVERYSERVICE: ${LOG_LEVEL:-WARN}
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/delivery_db
       SPRING_DATASOURCE_USERNAME: delivery
       SPRING_DATASOURCE_PASSWORD: ${DELIVERY_DB_PASSWORD:-delivery}
@@ -234,6 +240,7 @@ services:
     environment:
       <<: *java-env
       OTEL_SERVICE_NAME: analytics-service
+      LOGGING_LEVEL_ORG_EXAMPLE_ANALYTICSSERVICE: ${LOG_LEVEL:-WARN}
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/analytics_db
       SPRING_DATASOURCE_USERNAME: analytics
       SPRING_DATASOURCE_PASSWORD: ${ANALYTICS_DB_PASSWORD:-analytics}
@@ -258,6 +265,7 @@ services:
     environment:
       <<: *java-env
       OTEL_SERVICE_NAME: gateway-service
+      LOGGING_LEVEL_ORG_EXAMPLE_GATEWAYSERVICE: ${LOG_LEVEL:-WARN}
       SPRING_DATA_REDIS_HOST: redis-edge
       SPRING_DATA_REDIS_PORT: 6379
       TENANT_SERVICE_URL: http://tenant-service:8080
