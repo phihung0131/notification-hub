@@ -1,0 +1,6 @@
+apiVersion: 1
+providers:
+  - name: notification-hub
+    type: file
+    allowUiUpdates: true
+    options: {path: /var/lib/grafana/dashboards}
