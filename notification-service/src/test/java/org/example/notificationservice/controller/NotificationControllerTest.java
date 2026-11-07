@@ -2,7 +2,6 @@ package org.example.notificationservice.controller;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.verify;
@@ -13,20 +12,20 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import org.example.commons.exception.BaseException;
 import org.example.commons.exception.GlobalExceptionHandler;
+import org.example.notificationservice.application.SendCommand;
+import org.example.notificationservice.application.SendNotificationUseCase;
+import org.example.notificationservice.application.SendResult;
 import org.example.notificationservice.common.enums.NotificationStatus;
+import org.example.notificationservice.config.DependencyExceptionHandler;
 import org.example.notificationservice.dto.request.SendNotificationRequest;
 import org.example.notificationservice.dto.response.SendNotificationResponse;
-import org.example.notificationservice.service.NotificationOrchestrationService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -36,16 +35,24 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  *
  * @author Notification Hub Team
  */
-@WebMvcTest(NotificationController.class)
-@AutoConfigureMockMvc(addFilters = false)
-@Import(GlobalExceptionHandler.class)
 class NotificationControllerTest {
 
-    @Autowired private MockMvc mockMvc;
+    private MockMvc mockMvc;
 
-    @Autowired private ObjectMapper objectMapper;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
-    @MockBean private NotificationOrchestrationService orchestrationService;
+    private final SendNotificationUseCase orchestrationService =
+            org.mockito.Mockito.mock(SendNotificationUseCase.class);
+
+    @BeforeEach
+    void setUp() {
+        // standalone: the app-level @ComponentScan makes @WebMvcTest load every bean
+        mockMvc =
+                MockMvcBuilders.standaloneSetup(new NotificationController(orchestrationService))
+                        .setControllerAdvice(
+                                new GlobalExceptionHandler(), new DependencyExceptionHandler())
+                        .build();
+    }
 
     @Test
     @DisplayName("POST /send - Should accept valid notification request and return 202")
@@ -68,8 +75,8 @@ class NotificationControllerTest {
                         .message("Notification request accepted and queued for processing")
                         .build();
 
-        when(orchestrationService.send(any(SendNotificationRequest.class), eq(tenantId)))
-                .thenReturn(expectedResponse);
+        when(orchestrationService.send(any(SendCommand.class)))
+                .thenReturn(new SendResult(expectedResponse, false));
 
         // When & Then
         mockMvc.perform(
@@ -88,7 +95,7 @@ class NotificationControllerTest {
                 .andExpect(jsonPath("$.spanId").exists())
                 .andExpect(jsonPath("$.ts").exists());
 
-        verify(orchestrationService).send(any(SendNotificationRequest.class), eq(tenantId));
+        verify(orchestrationService).send(any(SendCommand.class));
     }
 
     @Test
@@ -108,7 +115,7 @@ class NotificationControllerTest {
                                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().is5xxServerError()); // Missing required header causes 500
 
-        verify(orchestrationService, never()).send(any(), any());
+        verify(orchestrationService, never()).send(any());
     }
 
     @Test
@@ -126,7 +133,7 @@ class NotificationControllerTest {
                                 .content(invalidJson))
                 .andExpect(status().is5xxServerError()); // JSON parse error causes 500
 
-        verify(orchestrationService, never()).send(any(), any());
+        verify(orchestrationService, never()).send(any());
     }
 
     @Test
@@ -141,7 +148,7 @@ class NotificationControllerTest {
         request.setSubject("Test");
         request.setContent("Content");
 
-        when(orchestrationService.send(any(SendNotificationRequest.class), eq(tenantId)))
+        when(orchestrationService.send(any(SendCommand.class)))
                 .thenThrow(
                         new BaseException(
                                 2000003,
@@ -162,7 +169,7 @@ class NotificationControllerTest {
                 .andExpect(jsonPath("$.error.message").value("Notification quota exceeded."))
                 .andExpect(jsonPath("$.traceId").exists());
 
-        verify(orchestrationService).send(any(SendNotificationRequest.class), eq(tenantId));
+        verify(orchestrationService).send(any(SendCommand.class));
     }
 
     @Test
@@ -177,7 +184,7 @@ class NotificationControllerTest {
         request.setSubject("Test");
         request.setContent("Content");
 
-        when(orchestrationService.send(any(SendNotificationRequest.class), eq(tenantId)))
+        when(orchestrationService.send(any(SendCommand.class)))
                 .thenThrow(
                         new BaseException(
                                 2000001, HttpStatus.NOT_FOUND, "Channel not found.", null));
@@ -193,7 +200,7 @@ class NotificationControllerTest {
                 .andExpect(jsonPath("$.error.code").value(2000001))
                 .andExpect(jsonPath("$.error.message").value("Channel not found."));
 
-        verify(orchestrationService).send(any(SendNotificationRequest.class), eq(tenantId));
+        verify(orchestrationService).send(any(SendCommand.class));
     }
 
     @Test
@@ -220,8 +227,8 @@ class NotificationControllerTest {
                             .message("Accepted")
                             .build();
 
-            when(orchestrationService.send(any(SendNotificationRequest.class), eq(tenantId)))
-                    .thenReturn(response);
+            when(orchestrationService.send(any(SendCommand.class)))
+                    .thenReturn(new SendResult(response, false));
 
             // When & Then
             mockMvc.perform(
@@ -233,7 +240,63 @@ class NotificationControllerTest {
                     .andExpect(jsonPath("$.success").value(true))
                     .andExpect(jsonPath("$.data.id").value("msg-" + channel));
 
-            verify(orchestrationService).send(any(SendNotificationRequest.class), eq(tenantId));
+            verify(orchestrationService).send(any(SendCommand.class));
         }
+    }
+
+    @Test
+    @DisplayName("POST /send - Idempotency-Key is passed to the use case and replay is flagged")
+    void send_IdempotencyKey_PassedAndReplayHeaderSet() throws Exception {
+        String tenantId = "tenant-123";
+        SendNotificationRequest request = new SendNotificationRequest();
+        request.setChannel("EMAIL");
+        request.setRecipient("user@example.com");
+        request.setContent("Content");
+
+        SendNotificationResponse resp =
+                SendNotificationResponse.builder()
+                        .id("orig-id")
+                        .tenantId(tenantId)
+                        .notificationStatus(NotificationStatus.PENDING)
+                        .message("Accepted")
+                        .build();
+        when(orchestrationService.send(any(SendCommand.class)))
+                .thenReturn(new SendResult(resp, true));
+
+        mockMvc.perform(
+                        post("/send")
+                                .header("X-Tenant-Id", tenantId)
+                                .header("Idempotency-Key", "key-1")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isAccepted())
+                .andExpect(
+                        org.springframework.test.web.servlet.result.MockMvcResultMatchers.header()
+                                .string("Idempotent-Replayed", "true"))
+                .andExpect(jsonPath("$.data.id").value("orig-id"));
+
+        org.mockito.ArgumentCaptor<SendCommand> cap =
+                org.mockito.ArgumentCaptor.forClass(SendCommand.class);
+        verify(orchestrationService).send(cap.capture());
+        org.junit.jupiter.api.Assertions.assertEquals("key-1", cap.getValue().idempotencyKey());
+        org.junit.jupiter.api.Assertions.assertEquals(tenantId, cap.getValue().tenantId());
+    }
+
+    @Test
+    @DisplayName("POST /send - Oversized Idempotency-Key is rejected with 400")
+    void send_InvalidIdempotencyKey_Returns400() throws Exception {
+        SendNotificationRequest request = new SendNotificationRequest();
+        request.setChannel("EMAIL");
+        request.setRecipient("user@example.com");
+        request.setContent("Content");
+
+        mockMvc.perform(
+                        post("/send")
+                                .header("X-Tenant-Id", "t")
+                                .header("Idempotency-Key", "x".repeat(256))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+        verify(orchestrationService, never()).send(any());
     }
 }

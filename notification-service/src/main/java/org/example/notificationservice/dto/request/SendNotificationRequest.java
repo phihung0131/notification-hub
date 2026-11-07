@@ -24,4 +24,7 @@ public class SendNotificationRequest {
 
     private String content;
     private Map<String, String> variables;
+
+    /** HIGH | NORMAL | LOW. Optional, defaults to NORMAL. */
+    private String priority;
 }

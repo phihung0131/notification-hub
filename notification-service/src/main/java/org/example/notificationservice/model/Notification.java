@@ -76,6 +76,18 @@ public class Notification {
     @Builder.Default
     private Instant updatedAt = Instant.now();
 
+    /** Client Idempotency-Key; unique per tenant while set (cleared after 24h). */
+    @Column(name = "idempotency_key")
+    private String idempotencyKey;
+
+    /** SHA-256 of the canonical request payload (detects key reuse with another payload). */
+    @Column(name = "request_fingerprint", length = 64)
+    private String requestFingerprint;
+
+    @Column(nullable = false, length = 16)
+    @Builder.Default
+    private String priority = "NORMAL";
+
     @PreUpdate
     protected void onUpdate() {
         this.updatedAt = Instant.now();

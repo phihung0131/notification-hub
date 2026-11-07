@@ -3,9 +3,13 @@ package org.example.notificationservice.controller;
 import jakarta.validation.Valid;
 
 import org.example.commons.baseclass.ApiResponse;
+import org.example.commons.exception.BaseException;
+import org.example.notificationservice.application.SendCommand;
+import org.example.notificationservice.application.SendNotificationUseCase;
+import org.example.notificationservice.application.SendResult;
+import org.example.notificationservice.common.exception.ApiErrorMessage;
 import org.example.notificationservice.dto.request.SendNotificationRequest;
 import org.example.notificationservice.dto.response.SendNotificationResponse;
-import org.example.notificationservice.service.NotificationOrchestrationService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -24,28 +28,45 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class NotificationController {
 
-    private final NotificationOrchestrationService orchestrationService;
+    public static final String IDEMPOTENCY_KEY_HEADER = "Idempotency-Key";
+    public static final String REPLAYED_HEADER = "Idempotent-Replayed";
+
+    private final SendNotificationUseCase sendNotification;
 
     /**
-     * Send notification endpoint. Accepts notification request, validates, checks quota, saves to
-     * DB, and publishes to Kafka. Returns 202 ACCEPTED immediately with message ID.
+     * Accepts a notification. Returns 202 with the message id. A repeated {@code Idempotency-Key}
+     * with the same payload replays the original response (header {@code Idempotent-Replayed:
+     * true}); a different payload gives 422; a concurrent in-flight duplicate gives 409.
      *
-     * @param request notification request
      * @param tenantId tenant ID from gateway (X-Tenant-Id header)
-     * @return API response with message ID
+     * @param idempotencyKey optional client key, scoped per tenant, kept 24h
      */
     @PostMapping
     public ResponseEntity<ApiResponse<SendNotificationResponse>> send(
             @RequestBody @Valid SendNotificationRequest request,
-            @RequestHeader("X-Tenant-Id") String tenantId) {
+            @RequestHeader("X-Tenant-Id") String tenantId,
+            @RequestHeader(value = IDEMPOTENCY_KEY_HEADER, required = false)
+                    String idempotencyKey) {
 
+        if (idempotencyKey != null
+                && (idempotencyKey.isBlank()
+                        || idempotencyKey.length() > 255
+                        || idempotencyKey.chars().anyMatch(c -> c < 0x20 || c == 0x7f))) {
+            throw new BaseException(ApiErrorMessage.INVALID_IDEMPOTENCY_KEY);
+        }
         log.info(
-                "Received notification request from tenant: {}, channel: {}",
+                "Received notification request from tenant: {}, channel: {}, idempotent: {}",
                 tenantId,
-                request.getChannel());
+                request.getChannel(),
+                idempotencyKey != null);
 
-        SendNotificationResponse response = orchestrationService.send(request, tenantId);
+        SendResult result =
+                sendNotification.send(new SendCommand(tenantId, request, idempotencyKey));
 
-        return ResponseEntity.status(HttpStatus.ACCEPTED).body(ApiResponse.ok(response));
+        ResponseEntity.BodyBuilder builder = ResponseEntity.status(HttpStatus.ACCEPTED);
+        if (result.replayed()) {
+            builder.header(REPLAYED_HEADER, "true");
+        }
+        return builder.body(ApiResponse.ok(result.response()));
     }
 }

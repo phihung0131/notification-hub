@@ -31,7 +31,39 @@ public class ApiErrorMessage {
                     new ApiErrorMessage(
                             2000008, "Content exceeds maximum length.", HttpStatus.BAD_REQUEST),
             CHANNEL_EXISTED =
-                    new ApiErrorMessage(2000008, "Channel existed.", HttpStatus.BAD_REQUEST);
+                    new ApiErrorMessage(2000008, "Channel existed.", HttpStatus.BAD_REQUEST),
+            IDEMPOTENCY_KEY_REUSED =
+                    new ApiErrorMessage(
+                            2000010,
+                            "Idempotency-Key was already used with a different request payload.",
+                            HttpStatus.UNPROCESSABLE_ENTITY),
+            IDEMPOTENCY_IN_FLIGHT =
+                    new ApiErrorMessage(
+                            2000011,
+                            "A request with this Idempotency-Key is still being processed.",
+                            HttpStatus.CONFLICT),
+            INVALID_IDEMPOTENCY_KEY =
+                    new ApiErrorMessage(
+                            2000012,
+                            "Idempotency-Key must be 1 to 255 printable characters.",
+                            HttpStatus.BAD_REQUEST),
+            INVALID_PRIORITY =
+                    new ApiErrorMessage(
+                            2000013,
+                            "Priority must be HIGH, NORMAL or LOW.",
+                            HttpStatus.BAD_REQUEST),
+            TENANT_NOT_FOUND =
+                    new ApiErrorMessage(2000014, "Tenant not found.", HttpStatus.FORBIDDEN),
+            QUOTA_UNAVAILABLE =
+                    new ApiErrorMessage(
+                            2000015,
+                            "Quota service unavailable, request rejected (fail closed).",
+                            HttpStatus.SERVICE_UNAVAILABLE),
+            DEPENDENCY_UNAVAILABLE =
+                    new ApiErrorMessage(
+                            2000016,
+                            "A required dependency is unavailable, request rejected.",
+                            HttpStatus.SERVICE_UNAVAILABLE);
 
     protected final int code;
     protected final String message;
