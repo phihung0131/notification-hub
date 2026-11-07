@@ -1,0 +1,9 @@
+.git
+.idea
+.claude
+.codegraph
+**/target
+**/node_modules
+docs
+reports
+*.md
