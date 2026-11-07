@@ -1,0 +1,118 @@
+# Load-test / chaos / observability overlay. Use together with compose.yaml:
+#   docker compose -f compose.yaml -f compose.loadtest.yaml --profile loadtest run --rm k6
+#   docker compose -f compose.yaml -f compose.loadtest.yaml --profile chaos up -d toxiproxy
+#   docker compose -f compose.yaml -f compose.loadtest.yaml --profile observability up -d
+#   docker compose -f compose.yaml -f compose.loadtest.yaml --profile observability --profile observability-extra up -d kafka-exporter
+# Everything here lives on the default compose network, so it reaches services by name.
+
+services:
+  # ---------------- load generator ----------------
+  k6:
+    profiles: [loadtest]
+    image: grafana/k6:0.55.0
+    entrypoint: ["k6"]
+    command: ["run", "--quiet", "/scripts/main.js"]
+    environment:
+      SCENARIO: ${SCENARIO:-smoke}
+      RUN_ID: ${RUN_ID:-local}
+      # optional: K6_OUT=experimental-prometheus-rw  (needs prometheus with remote-write receiver, see observability profile)
+      K6_OUT: ${K6_OUT:-}
+      K6_PROMETHEUS_RW_SERVER_URL: http://prometheus:9090/api/v1/write
+      K6_PROMETHEUS_RW_TREND_STATS: p(50),p(95),p(99),max
+      K6_PROMETHEUS_RW_PUSH_INTERVAL: 5s
+      # scenario knobs, passed through when set (see docs/BENCHMARKING.md)
+      RATE: ${RATE:-}
+      DURATION: ${DURATION:-}
+      WARMUP: ${WARMUP:-}
+      VUS: ${VUS:-}
+      PRE_VUS: ${PRE_VUS:-}
+      MAX_VUS: ${MAX_VUS:-}
+      P95_MS: ${P95_MS:-}
+      P99_MS: ${P99_MS:-}
+      ERR_RATE: ${ERR_RATE:-}
+      START_RATE: ${START_RATE:-}
+      STEP_RATE: ${STEP_RATE:-}
+      MAX_RATE: ${MAX_RATE:-}
+      STEP_DURATION: ${STEP_DURATION:-}
+      STRESS_ERR_RATE: ${STRESS_ERR_RATE:-}
+      SPIKE_RATE: ${SPIKE_RATE:-}
+      SPIKE_DURATION: ${SPIKE_DURATION:-}
+      BASE_DURATION: ${BASE_DURATION:-}
+      RECOVER_DURATION: ${RECOVER_DURATION:-}
+      SOAK_DURATION: ${SOAK_DURATION:-}
+      NOISY_RATE: ${NOISY_RATE:-}
+      VICTIM_RATE: ${VICTIM_RATE:-}
+      VICTIM_P95_MS: ${VICTIM_P95_MS:-}
+      KEYS_PER_SEC: ${KEYS_PER_SEC:-}
+      DUP: ${DUP:-}
+      BATCHES_PER_SEC: ${BATCHES_PER_SEC:-}
+      BATCH_SIZE: ${BATCH_SIZE:-}
+      GW_URL: ${GW_URL:-}
+      TENANT_URL: ${TENANT_URL:-}
+      NOTI_URL: ${NOTI_URL:-}
+    volumes:
+      - ./loadtest:/scripts:ro
+      - ./reports:/reports
+    # run as host user so reports are not root-owned
+    user: "${UID:-1000}:${GID:-1000}"
+    mem_limit: 512m
+    depends_on:
+      gateway-service: {condition: service_started}
+
+  # ---------------- reconciliation verifier ----------------
+  verifier:
+    profiles: [loadtest]
+    image: python:3.12-slim
+    working_dir: /verifier
+    entrypoint: ["python", "-u", "verify.py"]
+    environment:
+      RUN_ID: ${RUN_ID:-local}
+      REPORTS_DIR: /reports
+      ANALYTICS_URL: http://analytics-service:8080/api/v1/analytics
+      MAILPIT_URL: http://mailpit:8025
+      TENANT_URL: http://tenant-service:8080/api/v1/tenants
+      NOTI_URL: http://notification-service:8080/api/v1/notifications
+      # no docker socket in this container: SQL based checks are skipped unless PG_* is set and psycopg is present
+      CHECKS: ${CHECKS:-analytics,mailpit}
+      DRAIN_TIMEOUT: ${DRAIN_TIMEOUT:-120}
+    volumes:
+      - ./verifier:/verifier:ro
+      - ./reports:/reports
+    user: "${UID:-1000}:${GID:-1000}"
+    mem_limit: 128m
+
+  # ---------------- chaos ----------------
+  toxiproxy:
+    profiles: [chaos]
+    image: ghcr.io/shopify/toxiproxy:2.9.0
+    restart: unless-stopped
+    ports: ["8474:8474"]     # admin API
+    mem_limit: 64m
+
+  # ---------------- observability additions ----------------
+  # Override: custom scrape config + remote-write receiver (for k6 metrics) + Grafana provisioning.
+  prometheus:
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=2d
+      - --web.enable-remote-write-receiver
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+
+  grafana:
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/overview.json
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+
+  # Kafka consumer lag is not exposed by the JVM services; this exporter scrapes the broker.
+  kafka-exporter:
+    profiles: [observability-extra]
+    image: danielqsj/kafka-exporter:v1.8.0
+    command: ["--kafka.server=kafka:9092"]
+    depends_on:
+      kafka: {condition: service_healthy}
+    mem_limit: 64m

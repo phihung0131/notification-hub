@@ -1,0 +1,23 @@
+# Superset of docker/prometheus.yml (+ kafka-exporter). docker/prometheus.yml is untouched.
+# Used by compose.loadtest.yaml. Redis/Postgres exporters are not shipped (Hikari + Lettuce metrics come from the JVMs).
+global:
+  scrape_interval: 5s
+scrape_configs:
+  - job_name: gateway
+    metrics_path: /actuator/prometheus
+    static_configs: [{targets: ["gateway-service:8080"], labels: {service: gateway}}]
+  - job_name: tenant
+    metrics_path: /api/v1/tenants/actuator/prometheus
+    static_configs: [{targets: ["tenant-service:8080"], labels: {service: tenant}}]
+  - job_name: notification
+    metrics_path: /api/v1/notifications/actuator/prometheus
+    static_configs: [{targets: ["notification-service:8080"], labels: {service: notification}}]
+  - job_name: delivery
+    metrics_path: /api/v1/delivery/actuator/prometheus
+    static_configs: [{targets: ["delivery-service:8080"], labels: {service: delivery}}]
+  - job_name: analytics
+    metrics_path: /api/v1/analytics/actuator/prometheus
+    static_configs: [{targets: ["analytics-service:8080"], labels: {service: analytics}}]
+  # up only with `--profile observability-extra` (target shows DOWN otherwise)
+  - job_name: kafka
+    static_configs: [{targets: ["kafka-exporter:9308"]}]
