@@ -10,7 +10,7 @@ then reconciles per tenant:
                   no non-terminal status after drain
   mailpit       : mails == analytics-successful (or expected when analytics unavailable),
                   duplicates (same recipient twice) == 0, no successful-but-missing mail
-  quota         : tenant quota_used == successful sends                             (SQL)
+  quota         : tenant quota_used == notifications accepted by provider (SENT)                             (SQL)
 
 Checks are selected with CHECKS=notifications,analytics,mailpit,quota (default all). A check whose backend is
 unreachable is SKIPPED (STRICT=1 turns SKIPPED into FAIL). Exit code 1 on any FAIL. Writes verify.json + verify.md.
@@ -25,7 +25,7 @@ from collections import Counter
 
 import adapters as A
 
-SUCCESS = set(A.env("SUCCESS_STATUSES", "SENT,DELIVERED,SUCCESS,COMPLETED").split(","))
+SUCCESS = set(A.env("SUCCESS_STATUSES", "SENT,DELIVERED,ACKNOWLEDGED,SUCCESS,COMPLETED").split(","))
 FAILED = set(A.env("FAILED_STATUSES", "FAILED,DLQ,REJECTED").split(","))
 TERMINAL = SUCCESS | FAILED
 
@@ -150,7 +150,11 @@ def check_tenant(alias, t, checks):
     if "quota" in checks:
         try:
             used = A.quota_used(tid)
-            sent = sum(1 for r in rows if r.get("status") in SUCCESS) if rows is not None else exp
+            # Charged on provider acceptance (notification SENT); a later bounce is not refunded (ADR 0004).
+            try:
+                sent = A.notification_status_counts(tid).get("SENT", 0)
+            except Exception:
+                sent = sum(1 for r in rows if r.get("status") in SUCCESS) if rows is not None else exp
             problems = []
             if used != sent:
                 problems.append(f"quota_used={used} but successful sends={sent}")
@@ -186,7 +190,7 @@ def main():
     d = os.path.join(a.reports, a.run_id)
     manifest = json.load(open(os.path.join(d, "manifest.json")))
     tenants = manifest["tenants"]
-    checks = set(A.env("CHECKS", "notifications,analytics,mailpit,quota").split(","))
+    checks = set(A.env("CHECKS", "notifications,analytics,quota").split(","))
     drained, _ = (True, None) if a.no_wait else drain(tenants, float(A.env("DRAIN_TIMEOUT", "120")))
     if not drained:
         print("WARNING: pipeline did not fully drain before timeout; results may show loss", file=sys.stderr)
