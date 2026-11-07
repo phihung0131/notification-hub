@@ -192,11 +192,20 @@ services:
     <<: *java-service
     build: {context: ., args: {SERVICE: delivery-service, PROFILE: delivery}}
     depends_on:
+      postgres: {condition: service_healthy}
+      redis-core: {condition: service_healthy}
       kafka-init: {condition: service_completed_successfully}
       schema-registry: {condition: service_healthy}
     environment:
       <<: *java-env
       OTEL_SERVICE_NAME: delivery-service
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/delivery_db
+      SPRING_DATASOURCE_USERNAME: delivery
+      SPRING_DATASOURCE_PASSWORD: ${DELIVERY_DB_PASSWORD:-delivery}
+      SPRING_DATA_REDIS_HOST: redis-core
+      SPRING_DATA_REDIS_PORT: 6379
+      MAIL_HOST: mailpit
+      MAIL_PORT: 1025
       SPRING_KAFKA_CONSUMER_GROUP_ID: delivery-consumer-group
       GRPC_CLIENT_TENANT_SERVICE_ADDRESS: static://tenant-service:9090
     healthcheck:
