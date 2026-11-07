@@ -39,7 +39,8 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
     private final JwtUtils jwtUtils;
 
-    private final Integer QUOTA_LIMIT_DEFAULT = 1000;
+    @org.springframework.beans.factory.annotation.Value("${app.quota.default-limit:1000}")
+    private Integer quotaLimitDefault;
 
     /**
      * Authenticate user and generate JWT token
@@ -101,7 +102,7 @@ public class AuthService {
                 Tenant.builder()
                         .name(tenantCreateRequest.getName())
                         .email(tenantCreateRequest.getEmail())
-                        .quotaLimit(QUOTA_LIMIT_DEFAULT)
+                        .quotaLimit(quotaLimitDefault)
                         .quotaUsed(0)
                         .plan(Plan.FREE)
                         .password(passwordEncoder.encode(tenantCreateRequest.getPassword()))

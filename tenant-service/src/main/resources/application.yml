@@ -90,6 +90,7 @@ app:
     topic:
       result: notification.result
   quota:
+    default-limit: ${TENANT_DEFAULT_QUOTA_LIMIT:1000} # -1 = unlimited (used by load tests)
     reservation-ttl: PT15M # a hold auto-releases after this if no result arrives
     reconcile-interval-ms: 60000 # rebuild/align Redis ledger from Postgres
     processed-retention: P30D
