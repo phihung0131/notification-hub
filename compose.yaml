@@ -261,6 +261,8 @@ services:
       SPRING_DATA_REDIS_PORT: 6379
       TENANT_SERVICE_URL: http://tenant-service:8080
       GRPC_TENANT_SERVICE_ADDRESS: static://tenant-service:9090
+      GATEWAY_RATE_LIMIT_REPLENISH_RATE: ${GATEWAY_RATE_LIMIT_REPLENISH_RATE:-100}
+      GATEWAY_RATE_LIMIT_BURST_CAPACITY: ${GATEWAY_RATE_LIMIT_BURST_CAPACITY:-200}
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:8080/actuator/health >/dev/null"]
       interval: 10s

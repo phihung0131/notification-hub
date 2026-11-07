@@ -47,13 +47,20 @@ def deep_find_list(o):
 # GET {ANALYTICS_URL}/messages  -> list of {messageId, recipient, status, ...}
 # Override the path with ANALYTICS_LIST_PATH if it changes (e.g. to add paging).
 def analytics_messages(tenant_id):
+    """Follow the keyset cursor (items + nextCursor) until exhausted."""
     base = env("ANALYTICS_URL", "http://localhost:9004/api/v1/analytics")
     path = env("ANALYTICS_LIST_PATH", "/messages")
-    data = http_json("GET", base + path, {"X-Tenant-Id": tenant_id}, timeout=120)
-    lst = deep_find_list(data)
-    if lst is None:
-        raise Unavailable("analytics response had no list")
-    return lst
+    out, cursor = [], None
+    while True:
+        q = "?limit=200" + (f"&cursor={cursor}" if cursor else "")
+        data = http_json("GET", base + path + q, {"X-Tenant-Id": tenant_id}, timeout=120)
+        lst = deep_find_list(data)
+        if lst is None:
+            raise Unavailable("analytics response had no list")
+        out.extend(lst)
+        cursor = ((data or {}).get("data") or {}).get("nextCursor") if isinstance(data, dict) else None
+        if not cursor:
+            return out
 
 
 # ---------------- Mailpit ----------------
