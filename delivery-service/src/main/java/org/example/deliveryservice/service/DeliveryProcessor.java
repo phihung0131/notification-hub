@@ -1,79 +1,104 @@
 package org.example.deliveryservice.service;
 
+import java.util.UUID;
+
+import org.example.deliveryservice.guard.RecipientGuard;
 import org.example.deliveryservice.kafka.producer.KafkaProducerService;
-import org.example.deliveryservice.service.adapter.DeliveryAdapter;
-import org.example.deliveryservice.service.model.DeliveryResult;
+import org.example.deliveryservice.provider.ChannelProvider.ProviderResult;
+import org.example.deliveryservice.provider.DeliveryException;
+import org.example.deliveryservice.state.DeliveryState;
+import org.example.deliveryservice.state.DeliveryStateRepository;
 import org.example.events.NotificationEvent;
-import org.example.events.enums.NotificationStatus;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/** Delivery Processor Service. */
+/**
+ * One delivery attempt. No sleeping and no in-process retry: failures are thrown and the Kafka
+ * error handler routes them to the next retry tier or the DLQ. Safe to call repeatedly for the same
+ * notification (redelivery, retry, replay): the processed-id store prevents a second send.
+ */
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class DeliveryProcessor {
 
-    private final DeliveryAdapterRegistry adapterRegistry;
+    private final ChannelDispatcher dispatcher;
     private final KafkaProducerService producerService;
+    private final DeliveryStateRepository state;
+    private final RecipientGuard guard;
 
-    @Value("${app.delivery.retry.max-attempts:3}")
-    private int maxAttempts;
+    public void process(NotificationEvent event, String lane) {
+        if (event.getId() == null) {
+            throw DeliveryException.permanent("notification id missing", null);
+        }
+        UUID id = event.getId();
+        String key = id.toString();
 
-    @Value("${app.delivery.retry.initial-backoff-ms:500}")
-    private long initialBackoffMs;
-
-    /**
-     * Process notification delivery with automatic retry logic.
-     *
-     * @param event the notification event to deliver (must not be null)
-     * @throws IllegalArgumentException if event or event.channel is null
-     */
-    public void process(NotificationEvent event) {
-        DeliveryAdapter adapter = adapterRegistry.resolve(event.getChannel());
-        int attempt = 0;
-        DeliveryResult result = DeliveryResult.failure("Not attempted");
-
-        while (attempt < maxAttempts) {
-            attempt++;
-            result = adapter.deliver(event);
-            if (result.status() == NotificationStatus.SENT) {
-                break;
-            }
-            // simple exponential backoff
-            long sleepMs = initialBackoffMs * (1L << (attempt - 1));
-            log.warn(
-                    "Attempt {}/{} failed for message {}. Backing off {} ms. Reason: {}",
-                    attempt,
-                    maxAttempts,
-                    event.getId(),
-                    sleepMs,
-                    result.detail());
-            try {
-                Thread.sleep(sleepMs);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                result = DeliveryResult.failure("Interrupted during retry backoff");
-                break;
+        boolean claimedNow =
+                state.insertIfAbsent(
+                        id,
+                        str(event.getTenantId()),
+                        str(event.getChannel()),
+                        str(event.getRecipient()));
+        if (!claimedNow) {
+            var row = state.find(id).orElseThrow();
+            if (row.state() != DeliveryState.IN_PROGRESS) {
+                if (!row.resultPublished()) {
+                    // sent earlier but the result event never made it: publish it, do not re-send
+                    publishResult(event, row.state());
+                    log.info("Redelivery of {}: republished missing result", key);
+                } else {
+                    log.info("Redelivery of {} ignored: already {}", key, row.state());
+                }
+                return;
             }
         }
 
-        NotificationEvent resultEvent =
-                NotificationEvent.newBuilder(event).setStatus(result.status()).build();
+        if (state.isOptedOut(str(event.getTenantId()), str(event.getRecipient()))) {
+            suppress(event, "recipient opted out");
+            return;
+        }
 
-        if (result.status() == NotificationStatus.SENT) {
-            producerService.sendResult(resultEvent);
-            log.info("Delivery success for message {} after {} attempt(s)", event.getId(), attempt);
+        var decision = guard.check(event, key);
+        switch (decision.verdict()) {
+            case DUPLICATE -> {
+                suppress(event, "duplicate content suppressed");
+                return;
+            }
+            case THROTTLED ->
+                    throw DeliveryException.retryableAfter(
+                            "recipient throttled", decision.retryAfter());
+            default -> {}
+        }
+
+        ProviderResult result = dispatcher.dispatch(event, key, lane);
+
+        if (state.advance(id, DeliveryState.SENT, result.providerMessageId())) {
+            publishResult(event, DeliveryState.SENT);
+            log.info("Delivered {} via {} ({})", key, event.getChannel(), result.detail());
         } else {
-            producerService.sendDlq(resultEvent, result.detail());
-            producerService.sendResult(resultEvent);
-            log.error(
-                    "Delivery failed for message {} after {} attempt(s). Sent to DLQ.",
-                    event.getId(),
-                    attempt);
+            log.info("State of {} already advanced past SENT, not publishing SENT", key);
         }
+    }
+
+    private void suppress(NotificationEvent event, String reason) {
+        if (state.failIfInProgress(event.getId(), reason)) {
+            publishResult(event, DeliveryState.FAILED);
+            log.info("Suppressed {}: {}", event.getId(), reason);
+        }
+    }
+
+    /** Publish result (awaited, acks=all) then flag it so redelivery will not repeat it. */
+    void publishResult(NotificationEvent event, DeliveryState st) {
+        NotificationEvent out =
+                NotificationEvent.newBuilder(event).setStatus(st.toEventStatus()).build();
+        producerService.sendResult(out);
+        state.markResultPublished(event.getId());
+    }
+
+    private static String str(CharSequence c) {
+        return c == null ? null : c.toString();
     }
 }
