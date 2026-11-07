@@ -7,6 +7,34 @@ spring:
     serialization:
       WRITE_DATES_AS_TIMESTAMPS: false
 
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://postgres:5432/delivery_db}
+    username: ${SPRING_DATASOURCE_USERNAME:delivery}
+    password: ${SPRING_DATASOURCE_PASSWORD:delivery}
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+
+  flyway:
+    enabled: true
+
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:redis-core}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+      timeout: 500ms
+      lettuce:
+        pool:
+          enabled: false
+
+  mail:
+    host: ${MAIL_HOST:mailpit}
+    port: ${MAIL_PORT:1025}
+    properties:
+      mail.smtp.connectiontimeout: 2000
+      mail.smtp.timeout: 5000
+      mail.smtp.writetimeout: 5000
+
   kafka:
     bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS}
     properties:
@@ -14,14 +42,25 @@ spring:
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: io.confluent.kafka.serializers.KafkaAvroSerializer
+      acks: all
       properties:
         auto.register.schemas: true
+        enable.idempotence: true
+        max.in.flight.requests.per.connection: 5
+        delivery.timeout.ms: 30000
+        request.timeout.ms: 10000
+        linger.ms: 5
     consumer:
-      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-deserializer: io.confluent.kafka.serializers.KafkaAvroDeserializer
+      key-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
       group-id: ${SPRING_KAFKA_CONSUMER_GROUP_ID}
+      enable-auto-commit: false
       properties:
         specific.avro.reader: true
+        spring.deserializer.key.delegate.class: org.apache.kafka.common.serialization.StringDeserializer
+        spring.deserializer.value.delegate.class: io.confluent.kafka.serializers.KafkaAvroDeserializer
+        # nack() holds a record up to the longest retry tier; keep well under this
+        max.poll.interval.ms: 300000
       auto-offset-reset: earliest
 
 server:
@@ -57,11 +96,72 @@ logging:
 
 app:
   kafka:
+    send-timeout-ms: 10000
+    # Topics must exist (kafka-init): 12 partitions each except dlq (3).
     topic:
       requested: notification.requested
+      requested-high: notification.requested.high
+      requested-low: notification.requested.low
       result: notification.result
       dlq: notification.dlq
   delivery:
     retry:
-      max-attempts: 3
-      initial-backoff-ms: 500
+      concurrency: 2
+      tiers:
+        - {topic: notification.requested.retry.5s, delay: 5s}
+        - {topic: notification.requested.retry.30s, delay: 30s}
+        - {topic: notification.requested.retry.2m, delay: 2m}
+    # Thread share per lane. Sum should be <= partitions (12) per topic; each lane has its own topic.
+    lanes:
+      high: {concurrency: 6, max-poll-records: 50}
+      normal: {concurrency: 4, max-poll-records: 50}
+      low: {concurrency: 2, max-poll-records: 20}
+    resilience:
+      max-concurrent-per-channel-lane: 8
+      bulkhead-max-wait: 100ms
+      failure-rate-threshold: 50
+      sliding-window-size: 20
+      minimum-calls: 10
+      open-state-wait: 15s
+      half-open-calls: 3
+      default-rate-limit-retry-after: 30s
+    guard:
+      enabled: true
+      max-per-window: 5
+      window: 1m
+      dedup-window: 5m
+    webhook:
+      secret: ${DELIVERY_WEBHOOK_SECRET:dev-webhook-secret}
+    replay:
+      max-replays: 1
+      max-batch: 500
+    # One entry per channel. Point base-url/api-key at a real provider to replace the mock.
+    providers:
+      email:
+        type: email
+        from: ${DELIVERY_MAIL_FROM:noreply@notification-hub.local}
+      sms:
+        type: http
+        base-url: ${PROVIDER_SMS_URL:http://mock-provider:8090}
+        path: /v1/sms/send
+        api-key: ${PROVIDER_SMS_KEY:mock-key}
+        connect-timeout: 1s
+        read-timeout: 3s
+      push:
+        type: http
+        base-url: ${PROVIDER_PUSH_URL:http://mock-provider:8090}
+        path: /v1/push/send
+        api-key: ${PROVIDER_PUSH_KEY:mock-key}
+        read-timeout: 3s
+      telegram:
+        type: http
+        base-url: ${PROVIDER_CHAT_URL:http://mock-provider:8090}
+        path: /v1/chat/send
+        api-key: ${PROVIDER_CHAT_KEY:mock-key}
+        read-timeout: 3s
+      default:
+        type: http
+        base-url: ${PROVIDER_DEFAULT_URL:http://mock-provider:8090}
+        path: /v1/default/send
+        api-key: ${PROVIDER_DEFAULT_KEY:mock-key}
+        read-timeout: 3s
