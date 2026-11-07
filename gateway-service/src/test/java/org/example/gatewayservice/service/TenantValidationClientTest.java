@@ -1,99 +1,177 @@
 package org.example.gatewayservice.service;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
+import java.time.Duration;
+import java.util.concurrent.atomic.AtomicInteger;
 
-import org.example.gatewayservice.model.ApiKeyValidationResponse;
-import org.example.proto.tenant.TenantServiceGrpc;
-import org.example.proto.tenant.ValidateApiKeyRequest;
+import org.example.gatewayservice.exception.InvalidCredentialsException;
+import org.example.gatewayservice.exception.TenantServiceUnavailableException;
 import org.example.proto.tenant.ValidateApiKeyResponse;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
+import org.example.proto.tenant.ValidateJwtResponse;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.test.util.ReflectionTestUtils;
 
-import io.grpc.StatusRuntimeException;
-import reactor.core.publisher.Mono;
+import io.grpc.Status;
 import reactor.test.StepVerifier;
 
-@ExtendWith(MockitoExtension.class)
-@DisplayName("TenantValidationClient Unit Tests")
 class TenantValidationClientTest {
 
-    @Mock private TenantServiceGrpc.TenantServiceBlockingStub tenantServiceStub;
+    interface ApiKeyCall {
+        ValidateApiKeyResponse call(String key);
+    }
 
-    @InjectMocks private TenantValidationClient validationClient;
+    private static TenantValidationClient client(ApiKeyCall call, Duration ttl) {
+        TenantRpc rpc =
+                new TenantRpc() {
+                    @Override
+                    public ValidateApiKeyResponse validateApiKey(String k, Duration d) {
+                        return call.call(k);
+                    }
 
-    private String testApiKey;
+                    @Override
+                    public ValidateJwtResponse validateJwt(String t, Duration d) {
+                        return ValidateJwtResponse.newBuilder()
+                                .setIsValid(true)
+                                .setTenantId("jwt-tenant")
+                                .build();
+                    }
+                };
+        return new TenantValidationClient(
+                rpc, Duration.ofSeconds(1), ttl, Duration.ofSeconds(5), 100);
+    }
 
-    @BeforeEach
-    void setUp() {
-        testApiKey = "test-api-key-12345678";
-        // Inject the mock stub via reflection
-        ReflectionTestUtils.setField(validationClient, "tenantServiceStub", tenantServiceStub);
+    private static ValidateApiKeyResponse valid() {
+        return ValidateApiKeyResponse.newBuilder()
+                .setIsValid(true)
+                .setTenantId("tenant-1")
+                .addPermissions("SEND")
+                .build();
     }
 
     @Test
-    @DisplayName("Should validate API key successfully via gRPC")
-    void validateApiKey_ValidKey_ReturnsResponse() {
-        // Arrange
-        ValidateApiKeyResponse grpcResponse =
-                ValidateApiKeyResponse.newBuilder()
-                        .setIsValid(true)
-                        .setTenantId("tenant-123")
-                        .setStatus("ACTIVE")
-                        .setPlan("PRO")
-                        .build();
-
-        when(tenantServiceStub.validateApiKey(any(ValidateApiKeyRequest.class)))
-                .thenReturn(grpcResponse);
-
-        // Act
-        Mono<ApiKeyValidationResponse> result = validationClient.validateApiKey(testApiKey);
-
-        // Assert
-        StepVerifier.create(result)
-                .expectNextMatches(response -> response.tenantId().equals("tenant-123"))
+    void validKeyReturnsTenant() {
+        TenantValidationClient c = client(k -> valid(), Duration.ofSeconds(30));
+        StepVerifier.create(c.validateApiKey("key"))
+                .expectNextMatches(r -> r.tenantId().equals("tenant-1"))
                 .verifyComplete();
     }
 
     @Test
-    @DisplayName("Should throw error for invalid API key")
-    void validateApiKey_InvalidKey_ThrowsError() {
-        // Arrange
-        ValidateApiKeyResponse grpcResponse =
-                ValidateApiKeyResponse.newBuilder()
-                        .setIsValid(false)
-                        .setTenantId("")
-                        .setStatus("")
-                        .setPlan("")
-                        .build();
-
-        when(tenantServiceStub.validateApiKey(any(ValidateApiKeyRequest.class)))
-                .thenReturn(grpcResponse);
-
-        // Act
-        Mono<ApiKeyValidationResponse> result = validationClient.validateApiKey(testApiKey);
-
-        // Assert
-        StepVerifier.create(result).expectError(RuntimeException.class).verify();
+    void validKeyIsCachedWithinTtl() {
+        AtomicInteger calls = new AtomicInteger();
+        TenantValidationClient c =
+                client(
+                        k -> {
+                            calls.incrementAndGet();
+                            return valid();
+                        },
+                        Duration.ofSeconds(30));
+        c.validateApiKey("key").block();
+        c.validateApiKey("key").block();
+        c.validateApiKey("key").block();
+        Assertions.assertEquals(1, calls.get());
     }
 
     @Test
-    @DisplayName("Should handle gRPC error gracefully")
-    void validateApiKey_GrpcError_ThrowsError() {
-        // Arrange
-        when(tenantServiceStub.validateApiKey(any(ValidateApiKeyRequest.class)))
-                .thenThrow(StatusRuntimeException.class);
+    void cacheExpiresAfterTtl() throws Exception {
+        AtomicInteger calls = new AtomicInteger();
+        TenantValidationClient c =
+                client(
+                        k -> {
+                            calls.incrementAndGet();
+                            return valid();
+                        },
+                        Duration.ofMillis(50));
+        c.validateApiKey("key").block();
+        Thread.sleep(120);
+        c.validateApiKey("key").block();
+        Assertions.assertEquals(2, calls.get());
+    }
 
-        // Act
-        Mono<ApiKeyValidationResponse> result = validationClient.validateApiKey(testApiKey);
+    @Test
+    void invalidKeyIs401Class_andNegativelyCached() {
+        AtomicInteger calls = new AtomicInteger();
+        TenantValidationClient c =
+                client(
+                        k -> {
+                            calls.incrementAndGet();
+                            return ValidateApiKeyResponse.newBuilder().setIsValid(false).build();
+                        },
+                        Duration.ofSeconds(30));
+        StepVerifier.create(c.validateApiKey("bad"))
+                .expectError(InvalidCredentialsException.class)
+                .verify();
+        StepVerifier.create(c.validateApiKey("bad"))
+                .expectError(InvalidCredentialsException.class)
+                .verify();
+        Assertions.assertEquals(1, calls.get());
+    }
 
-        // Assert
-        StepVerifier.create(result).expectError(RuntimeException.class).verify();
+    @Test
+    void grpcUnavailableIsServiceUnavailable_andNotCached() {
+        AtomicInteger calls = new AtomicInteger();
+        TenantValidationClient c =
+                client(
+                        k -> {
+                            if (calls.incrementAndGet() == 1) {
+                                throw Status.UNAVAILABLE.asRuntimeException();
+                            }
+                            return valid();
+                        },
+                        Duration.ofSeconds(30));
+        StepVerifier.create(c.validateApiKey("key"))
+                .expectError(TenantServiceUnavailableException.class)
+                .verify();
+        // recovery: the failure was not cached
+        StepVerifier.create(c.validateApiKey("key")).expectNextCount(1).verifyComplete();
+    }
+
+    @Test
+    void deadlineExceededIsServiceUnavailable() {
+        TenantValidationClient c =
+                client(
+                        k -> {
+                            throw Status.DEADLINE_EXCEEDED.asRuntimeException();
+                        },
+                        Duration.ofSeconds(30));
+        StepVerifier.create(c.validateApiKey("key"))
+                .expectError(TenantServiceUnavailableException.class)
+                .verify();
+    }
+
+    @Test
+    void grpcUnauthenticatedIsInvalidCredentials() {
+        TenantValidationClient c =
+                client(
+                        k -> {
+                            throw Status.UNAUTHENTICATED.asRuntimeException();
+                        },
+                        Duration.ofSeconds(30));
+        StepVerifier.create(c.validateApiKey("key"))
+                .expectError(InvalidCredentialsException.class)
+                .verify();
+    }
+
+    @Test
+    void blockingCallRunsOffTheCallerThread() {
+        String caller = Thread.currentThread().getName();
+        java.util.concurrent.atomic.AtomicReference<String> seen =
+                new java.util.concurrent.atomic.AtomicReference<>();
+        TenantValidationClient c =
+                client(
+                        k -> {
+                            seen.set(Thread.currentThread().getName());
+                            return valid();
+                        },
+                        Duration.ofSeconds(30));
+        c.validateApiKey("key").block();
+        Assertions.assertNotEquals(caller, seen.get());
+    }
+
+    @Test
+    void jwtValidates() {
+        TenantValidationClient c = client(k -> valid(), Duration.ofSeconds(30));
+        StepVerifier.create(c.validateJwt("tok"))
+                .expectNextMatches(r -> r.tenantId().equals("jwt-tenant"))
+                .verifyComplete();
     }
 }

@@ -9,10 +9,15 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     open-in-view: false
     properties:
       hibernate.format_sql: true
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
 
   jackson:
     time-zone: UTC
@@ -35,6 +40,12 @@ spring:
       properties:
         specific.avro.reader: true
       auto-offset-reset: earliest
+      enable-auto-commit: false
+      max-poll-records: ${ANALYTICS_BATCH_SIZE:500}
+    listener:
+      type: batch
+      ack-mode: manual
+      concurrency: ${ANALYTICS_CONSUMER_CONCURRENCY:1}
 
 server:
   port: 8080
@@ -72,6 +83,3 @@ app:
     topic:
       requested: notification.requested
       result: notification.result
-  batch:
-    size: 50
-    flush-interval-ms: 5000

@@ -13,6 +13,9 @@ public class ApiErrorMessage {
     public static ApiErrorMessage AUTHENTICATE_VALIDATION_FAILED =
             new ApiErrorMessage(
                     6000001, "Authenticate validation failed.", HttpStatus.UNAUTHORIZED);
+    public static ApiErrorMessage TENANT_SERVICE_UNAVAILABLE =
+            new ApiErrorMessage(
+                    6000002, "Authentication service unavailable.", HttpStatus.SERVICE_UNAVAILABLE);
 
     protected final int code;
     protected final String message;
