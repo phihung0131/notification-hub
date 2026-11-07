@@ -64,6 +64,11 @@ services:
         $$T --topic notification.requested --partitions $${TOPIC_PARTITIONS:-12} --replication-factor 1
         $$T --topic notification.result    --partitions $${TOPIC_PARTITIONS:-12} --replication-factor 1
         $$T --topic notification.dlq       --partitions 3 --replication-factor 1
+        $$T --topic notification.requested.high --partitions $${TOPIC_PARTITIONS:-12} --replication-factor 1
+        $$T --topic notification.requested.low --partitions $${TOPIC_PARTITIONS:-12} --replication-factor 1
+        $$T --topic notification.requested.retry.5s --partitions $${TOPIC_PARTITIONS:-12} --replication-factor 1
+        $$T --topic notification.requested.retry.30s --partitions $${TOPIC_PARTITIONS:-12} --replication-factor 1
+        $$T --topic notification.requested.retry.2m --partitions $${TOPIC_PARTITIONS:-12} --replication-factor 1
         kafka-topics --bootstrap-server kafka:9092 --list
     environment:
       TOPIC_PARTITIONS: ${TOPIC_PARTITIONS:-12}
