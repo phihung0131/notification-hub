@@ -18,8 +18,9 @@ import org.example.proto.tenant.ValidateApiKeyResponse;
 import org.example.tenantservice.common.enums.Plan;
 import org.example.tenantservice.common.enums.TenantStatus;
 import org.example.tenantservice.dto.TenantInfo;
+import org.example.tenantservice.quota.application.QuotaReservationService;
+import org.example.tenantservice.quota.domain.QuotaSnapshot;
 import org.example.tenantservice.service.ApiKeyValidationService;
-import org.example.tenantservice.service.QuotaService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -38,7 +39,7 @@ class TenantGrpcServiceTest {
 
     @Mock private ApiKeyValidationService apiKeyValidationService;
 
-    @Mock private QuotaService quotaService;
+    @Mock private QuotaReservationService quotaService;
 
     @Mock private StreamObserver<ValidateApiKeyResponse> validateResponseObserver;
 
@@ -203,9 +204,7 @@ class TenantGrpcServiceTest {
         String tenantId = "tenant-123";
         CheckQuotaRequest request = CheckQuotaRequest.newBuilder().setTenantId(tenantId).build();
 
-        when(quotaService.hasAvailableQuota(tenantId)).thenReturn(true);
-        when(quotaService.getRemainingQuota(tenantId)).thenReturn(500);
-        when(quotaService.getQuotaLimit(tenantId)).thenReturn(1000);
+        when(quotaService.check(tenantId)).thenReturn(snap(1000, 500));
 
         // When
         grpcService.checkQuota(request, quotaResponseObserver);
@@ -223,9 +222,7 @@ class TenantGrpcServiceTest {
         assertEquals(500, response.getRemaining());
         assertEquals(1000, response.getLimit());
 
-        verify(quotaService).hasAvailableQuota(tenantId);
-        verify(quotaService).getRemainingQuota(tenantId);
-        verify(quotaService).getQuotaLimit(tenantId);
+        verify(quotaService).check(tenantId);
     }
 
     @Test
@@ -235,9 +232,7 @@ class TenantGrpcServiceTest {
         String tenantId = "tenant-456";
         CheckQuotaRequest request = CheckQuotaRequest.newBuilder().setTenantId(tenantId).build();
 
-        when(quotaService.hasAvailableQuota(tenantId)).thenReturn(false);
-        when(quotaService.getRemainingQuota(tenantId)).thenReturn(0);
-        when(quotaService.getQuotaLimit(tenantId)).thenReturn(1000);
+        when(quotaService.check(tenantId)).thenReturn(snap(1000, 0));
 
         // When
         grpcService.checkQuota(request, quotaResponseObserver);
@@ -262,9 +257,7 @@ class TenantGrpcServiceTest {
         String tenantId = "tenant-unlimited";
         CheckQuotaRequest request = CheckQuotaRequest.newBuilder().setTenantId(tenantId).build();
 
-        when(quotaService.hasAvailableQuota(tenantId)).thenReturn(true);
-        when(quotaService.getRemainingQuota(tenantId)).thenReturn(-1);
-        when(quotaService.getQuotaLimit(tenantId)).thenReturn(-1);
+        when(quotaService.check(tenantId)).thenReturn(snap(-1, -1));
 
         // When
         grpcService.checkQuota(request, quotaResponseObserver);
@@ -309,7 +302,7 @@ class TenantGrpcServiceTest {
                         .getDescription()
                         .contains("Tenant ID must be provided"));
 
-        verify(quotaService, never()).hasAvailableQuota(anyString());
+        verify(quotaService, never()).check(anyString());
     }
 
     @Test
@@ -341,8 +334,7 @@ class TenantGrpcServiceTest {
         String tenantId = "tenant-error";
         CheckQuotaRequest request = CheckQuotaRequest.newBuilder().setTenantId(tenantId).build();
 
-        when(quotaService.hasAvailableQuota(tenantId))
-                .thenThrow(new RuntimeException("Database unavailable"));
+        when(quotaService.check(tenantId)).thenThrow(new RuntimeException("Database unavailable"));
 
         // When
         grpcService.checkQuota(request, quotaResponseObserver);
@@ -360,5 +352,12 @@ class TenantGrpcServiceTest {
         assertEquals(Status.Code.INTERNAL, statusException.getStatus().getCode());
         assertNotNull(statusException.getStatus().getDescription());
         assertTrue(statusException.getStatus().getDescription().contains("Internal error"));
+    }
+
+    /** Snapshot with {@code remaining} units left under {@code limit} (-1 = unlimited). */
+    private static QuotaSnapshot snap(int limit, int remaining) {
+        return limit < 0
+                ? new QuotaSnapshot(-1, 0, 0)
+                : new QuotaSnapshot(limit, limit - remaining, 0);
     }
 }

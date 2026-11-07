@@ -4,15 +4,25 @@ import java.util.List;
 
 import org.example.proto.tenant.CheckQuotaRequest;
 import org.example.proto.tenant.CheckQuotaResponse;
+import org.example.proto.tenant.CommitQuotaRequest;
+import org.example.proto.tenant.CommitQuotaResponse;
+import org.example.proto.tenant.ReleaseQuotaRequest;
+import org.example.proto.tenant.ReleaseQuotaResponse;
+import org.example.proto.tenant.ReserveQuotaRequest;
+import org.example.proto.tenant.ReserveQuotaResponse;
 import org.example.proto.tenant.TenantServiceGrpc;
 import org.example.proto.tenant.ValidateApiKeyRequest;
 import org.example.proto.tenant.ValidateApiKeyResponse;
 import org.example.proto.tenant.ValidateJwtRequest;
 import org.example.proto.tenant.ValidateJwtResponse;
 import org.example.tenantservice.dto.TenantInfo;
+import org.example.tenantservice.quota.application.QuotaReservationService;
+import org.example.tenantservice.quota.application.QuotaReservationService.ReserveOutcome;
+import org.example.tenantservice.quota.domain.CommitOutcome;
+import org.example.tenantservice.quota.domain.QuotaSnapshot;
+import org.example.tenantservice.quota.domain.ReserveResult;
 import org.example.tenantservice.service.ApiKeyValidationService;
 import org.example.tenantservice.service.AuthService;
-import org.example.tenantservice.service.QuotaService;
 
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
@@ -27,7 +37,7 @@ import net.devh.boot.grpc.server.service.GrpcService;
 public class TenantGrpcService extends TenantServiceGrpc.TenantServiceImplBase {
 
     private final ApiKeyValidationService apiKeyValidationService;
-    private final QuotaService quotaService;
+    private final QuotaReservationService quotaService;
     private final AuthService authService;
 
     /**
@@ -177,10 +187,11 @@ public class TenantGrpcService extends TenantServiceGrpc.TenantServiceImplBase {
                 return;
             }
 
-            // Check quota
-            boolean hasQuota = quotaService.hasAvailableQuota(request.getTenantId());
-            int remaining = quotaService.getRemainingQuota(request.getTenantId());
-            int limit = quotaService.getQuotaLimit(request.getTenantId());
+            // Non-binding view (ledger first, durable fallback)
+            QuotaSnapshot snap = quotaService.check(request.getTenantId());
+            boolean hasQuota = snap != null && (snap.unlimited() || snap.remaining() > 0);
+            int remaining = snap == null ? 0 : snap.remaining();
+            int limit = snap == null ? 0 : snap.limit();
 
             // Build response
             CheckQuotaResponse response =
@@ -209,6 +220,102 @@ public class TenantGrpcService extends TenantServiceGrpc.TenantServiceImplBase {
             responseObserver.onError(
                     Status.INTERNAL
                             .withDescription("Internal error during quota check")
+                            .withCause(e)
+                            .asRuntimeException());
+        }
+    }
+
+    /**
+     * Reserve one quota unit atomically. Ledger failure maps to UNAVAILABLE so callers fail closed.
+     */
+    @Override
+    public void reserveQuota(
+            ReserveQuotaRequest request, StreamObserver<ReserveQuotaResponse> responseObserver) {
+        if (request.getTenantId().isBlank() || request.getReservationId().isBlank()) {
+            responseObserver.onError(
+                    Status.INVALID_ARGUMENT
+                            .withDescription("tenantId and reservationId are required")
+                            .asRuntimeException());
+            return;
+        }
+        try {
+            ReserveOutcome outcome =
+                    quotaService.reserve(
+                            request.getTenantId(),
+                            request.getReservationId(),
+                            request.getTtlSeconds() > 0
+                                    ? java.time.Duration.ofSeconds(request.getTtlSeconds())
+                                    : null);
+            ReserveQuotaResponse.Builder b =
+                    ReserveQuotaResponse.newBuilder()
+                            .setGranted(outcome.result() == ReserveResult.GRANTED);
+            switch (outcome.result()) {
+                case GRANTED -> b.setReason("OK");
+                case EXCEEDED -> b.setReason("QUOTA_EXCEEDED");
+                case UNKNOWN_TENANT -> b.setReason("UNKNOWN_TENANT");
+            }
+            if (outcome.snapshot() != null) {
+                int held = outcome.snapshot().held();
+                int limit = outcome.snapshot().limit();
+                b.setLimit(limit)
+                        .setRemaining(
+                                limit < 0
+                                        ? -1
+                                        : Math.max(0, limit - outcome.snapshot().used() - held));
+            }
+            responseObserver.onNext(b.build());
+            responseObserver.onCompleted();
+        } catch (Exception e) {
+            log.error(
+                    "reserveQuota failed for tenant {}: {}", request.getTenantId(), e.getMessage());
+            responseObserver.onError(
+                    Status.UNAVAILABLE
+                            .withDescription("Quota ledger unavailable")
+                            .withCause(e)
+                            .asRuntimeException());
+        }
+    }
+
+    /** Count a delivered notification durably. Idempotent per reservationId. */
+    @Override
+    public void commitQuota(
+            CommitQuotaRequest request, StreamObserver<CommitQuotaResponse> responseObserver) {
+        try {
+            CommitOutcome outcome =
+                    quotaService.commit(request.getTenantId(), request.getReservationId());
+            responseObserver.onNext(
+                    CommitQuotaResponse.newBuilder()
+                            .setCommitted(outcome == CommitOutcome.COMMITTED)
+                            .setReason(outcome.name())
+                            .build());
+            responseObserver.onCompleted();
+        } catch (Exception e) {
+            log.error(
+                    "commitQuota failed for tenant {}: {}", request.getTenantId(), e.getMessage());
+            responseObserver.onError(
+                    Status.UNAVAILABLE
+                            .withDescription("Quota commit unavailable")
+                            .withCause(e)
+                            .asRuntimeException());
+        }
+    }
+
+    /** Drop a hold. Idempotent. */
+    @Override
+    public void releaseQuota(
+            ReleaseQuotaRequest request, StreamObserver<ReleaseQuotaResponse> responseObserver) {
+        try {
+            boolean released =
+                    quotaService.release(request.getTenantId(), request.getReservationId());
+            responseObserver.onNext(
+                    ReleaseQuotaResponse.newBuilder().setReleased(released).build());
+            responseObserver.onCompleted();
+        } catch (Exception e) {
+            log.error(
+                    "releaseQuota failed for tenant {}: {}", request.getTenantId(), e.getMessage());
+            responseObserver.onError(
+                    Status.UNAVAILABLE
+                            .withDescription("Quota release unavailable")
                             .withCause(e)
                             .asRuntimeException());
         }
