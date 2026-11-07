@@ -19,28 +19,27 @@ Multi-tenant notification platform. Java 21, Spring Boot microservices, Maven mu
 
 ## Commands
 
-Root POM only includes `commons-shared` and `gateway-service` by default. Other services are activated via Maven profiles: `tenant`, `notification`, `delivery`, `analytics`, `gateway`.
+Only Docker + Compose are needed on the host (builds run in a multi-stage `Dockerfile`; one image recipe for all services via `SERVICE`/`PROFILE` build args).
 
 ```bash
-./scripts/build-all.sh            # format + install commons-shared + build all services (-DskipTests)
-mvn clean install -pl commons-shared   # must be rebuilt after changing .proto / .avsc
-./scripts/format-code.sh          # Spotless apply (Google Java Format, AOSP style)
-./scripts/format-code.sh check    # Spotless check only
-mvn test -Ptenant,notification,delivery,analytics,gateway       # all tests
-mvn test -Pdelivery -pl delivery-service -Dtest=DeliveryProcessorTest            # single class
-mvn test -Pdelivery -pl delivery-service -Dtest=DeliveryProcessorTest#methodName # single method
-./scripts/start-services.sh       # docker network + Kafka/monitoring infra + all services via compose `up --watch`
-./scripts/stop-all.sh [--clean]   # --clean removes volumes (data loss)
-./scripts/check-health.sh         # curl actuator health of every service
-./scripts/test.sh                 # end-to-end smoke + ab benchmark; needs the full stack running
+make up        # build + start core stack (kafka, schema-registry, postgres, 2x redis, mailpit, 5 services)
+make obs       # same + Prometheus/Grafana/Jaeger + OTel agent
+make smoke     # register tenant -> API key -> channel -> POST /send through gateway
+make health    # curl actuator health of every service
+make fmt       # Spotless (Google Java Format, AOSP) inside a container
+make down      # stop (keep data) | make clean = stop + delete volumes
+docker compose --profile tools up -d   # + Kafka UI (:8080)
 ```
 
+Maven profiles (`tenant`, `notification`, `delivery`, `analytics`, `gateway`) select service modules; root POM always includes `commons-shared`. Rebuild images after changing `.proto`/`.avsc`. Single test (needs host JDK 21, or run inside a `maven:3.9.9-eclipse-temurin-21` container):
+`mvn test -Pdelivery -pl delivery-service -Dtest=DeliveryProcessorTest#method`.
+
 Notes:
-- Compose files are in `docker/` (`docker-compose.<svc>-dev.yml`, `kafka-dev`, `monitoring-dev`); external Docker network is `notification-net`.
-- Observability: OpenTelemetry java agent in `agents/`, collector config in `config/`, Jaeger at :16686, Kafka UI at :8080, Schema Registry at :8081.
-- Formatting is enforced by Spotless: run `format-code.sh` before committing; import order java → javax → jakarta → org → com, unused imports removed.
+- Topics are created by the `kafka-init` job (auto-create disabled); partition count from `TOPIC_PARTITIONS`.
+- One Postgres container holds a database + role per service (`docker/postgres/init.sh`); `redis-edge` = gateway rate limit, `redis-core` = quota/caches.
+- Container memory limits are set in `compose.yaml` for a ~16GB laptop.
 - Actuator paths include the service context path, e.g. `http://localhost:9001/api/v1/tenants/actuator/health`.
-- Tests are sparse unit tests (Mockito-style) under each service's `src/test`.
+- Mail sink UI: Mailpit at http://localhost:8025.
 
 ## Architecture (big picture)
 

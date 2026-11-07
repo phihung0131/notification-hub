@@ -32,8 +32,8 @@ check_service() {
 
 # Check infrastructure
 echo "Infrastructure:"
-check_service "Kafka UI      " "http://localhost:8080"
-check_service "Schema Registry" "http://localhost:8081/subjects"
+check_service "Mailpit       " "http://localhost:8025"
+check_service "Schema Registry" "http://localhost:8081/subjects" 2>/dev/null || true
 
 echo ""
 echo "Services:"

@@ -1,0 +1,303 @@
+# Notification Hub - single-file stack. Only Docker + Compose needed.
+#   docker compose up -d --build                      # core stack
+#   docker compose --profile observability up -d      # + Prometheus/Grafana/Jaeger
+#   docker compose --profile tools up -d              # + Kafka UI
+# Memory limits are sized for a ~16GB laptop (see docs/adr).
+
+name: notification-hub
+
+x-java-service: &java-service
+  restart: unless-stopped
+  environment: &java-env
+    SPRING_PROFILES_ACTIVE: docker
+    SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    SPRING_KAFKA_PROPERTIES_SCHEMA_REGISTRY_URL: http://schema-registry:8081
+    JAVA_TOOL_OPTIONS: ${OTEL_AGENT_OPTS:-}
+    OTEL_SERVICE_NAME: ${OTEL_SERVICE_NAME:-app}
+    OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+    OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+    OTEL_TRACES_EXPORTER: otlp
+    OTEL_METRICS_EXPORTER: none
+    OTEL_LOGS_EXPORTER: none
+
+services:
+  # ---------------- infrastructure ----------------
+  kafka:
+    image: confluentinc/cp-kafka:7.7.1
+    restart: unless-stopped
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      # topics are created explicitly by kafka-init (partition count matters)
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      KAFKA_LOG_RETENTION_HOURS: 24
+      KAFKA_HEAP_OPTS: -Xms384m -Xmx768m
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+    volumes: [kafka_data:/var/lib/kafka/data]
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092 >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 20s
+    mem_limit: 1100m
+
+  kafka-init:
+    image: confluentinc/cp-kafka:7.7.1
+    depends_on:
+      kafka: {condition: service_healthy}
+    restart: "no"
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        set -e
+        T="kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists"
+        $$T --topic notification.requested --partitions $${TOPIC_PARTITIONS:-12} --replication-factor 1
+        $$T --topic notification.result    --partitions $${TOPIC_PARTITIONS:-12} --replication-factor 1
+        $$T --topic notification.dlq       --partitions 3 --replication-factor 1
+        kafka-topics --bootstrap-server kafka:9092 --list
+    environment:
+      TOPIC_PARTITIONS: ${TOPIC_PARTITIONS:-12}
+    mem_limit: 256m
+
+  schema-registry:
+    image: confluentinc/cp-schema-registry:7.7.1
+    restart: unless-stopped
+    depends_on:
+      kafka: {condition: service_healthy}
+    environment:
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: PLAINTEXT://kafka:9092
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+      SCHEMA_REGISTRY_HEAP_OPTS: -Xms128m -Xmx256m
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8081/subjects >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+    mem_limit: 450m
+
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      TENANT_DB_PASSWORD: ${TENANT_DB_PASSWORD:-tenant}
+      NOTIFICATION_DB_PASSWORD: ${NOTIFICATION_DB_PASSWORD:-notification}
+      ANALYTICS_DB_PASSWORD: ${ANALYTICS_DB_PASSWORD:-analytics}
+      DELIVERY_DB_PASSWORD: ${DELIVERY_DB_PASSWORD:-delivery}
+    command: ["postgres", "-c", "max_connections=300", "-c", "shared_buffers=128MB", "-c", "synchronous_commit=on"]
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sh:/docker-entrypoint-initdb.d/init.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    mem_limit: 512m
+
+  redis-edge:   # gateway rate limiting
+    image: redis:7
+    restart: unless-stopped
+    command: ["redis-server", "--save", "", "--appendonly", "no", "--maxmemory", "96mb"]
+    healthcheck: {test: ["CMD", "redis-cli", "ping"], interval: 5s, timeout: 3s, retries: 10}
+    mem_limit: 128m
+
+  redis-core:   # quota, idempotency, caches
+    image: redis:7
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec", "--maxmemory", "160mb"]
+    volumes: [redis_core_data:/data]
+    healthcheck: {test: ["CMD", "redis-cli", "ping"], interval: 5s, timeout: 3s, retries: 10}
+    mem_limit: 220m
+
+  mailpit:
+    image: axllent/mailpit:latest
+    restart: unless-stopped
+    environment:
+      MP_MAX_MESSAGES: 500000
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+    ports: ["8025:8025"]
+    mem_limit: 128m
+
+  # ---------------- application services ----------------
+  tenant-service:
+    <<: *java-service
+    build: {context: ., args: {SERVICE: tenant-service, PROFILE: tenant}}
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis-core: {condition: service_healthy}
+      kafka-init: {condition: service_completed_successfully}
+      schema-registry: {condition: service_healthy}
+    environment:
+      <<: *java-env
+      OTEL_SERVICE_NAME: tenant-service
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/tenant_db
+      SPRING_DATASOURCE_USERNAME: tenant
+      SPRING_DATASOURCE_PASSWORD: ${TENANT_DB_PASSWORD:-tenant}
+      SPRING_DATA_REDIS_HOST: redis-core
+      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_KAFKA_CONSUMER_GROUP_ID: tenant-consumer-group
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/api/v1/tenants/actuator/health >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 40s
+    ports: ["9001:8080"]
+    mem_limit: 512m
+
+  notification-service:
+    <<: *java-service
+    build: {context: ., args: {SERVICE: notification-service, PROFILE: notification}}
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis-core: {condition: service_healthy}
+      tenant-service: {condition: service_healthy}
+      kafka-init: {condition: service_completed_successfully}
+      schema-registry: {condition: service_healthy}
+    environment:
+      <<: *java-env
+      OTEL_SERVICE_NAME: notification-service
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/notification_db
+      SPRING_DATASOURCE_USERNAME: notification
+      SPRING_DATASOURCE_PASSWORD: ${NOTIFICATION_DB_PASSWORD:-notification}
+      SPRING_DATA_REDIS_HOST: redis-core
+      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_KAFKA_CONSUMER_GROUP_ID: notification-consumer-group
+      GRPC_CLIENT_TENANT_SERVICE_ADDRESS: static://tenant-service:9090
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/api/v1/notifications/actuator/health >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 40s
+    ports: ["9002:8080"]
+    mem_limit: 512m
+
+  delivery-service:
+    <<: *java-service
+    build: {context: ., args: {SERVICE: delivery-service, PROFILE: delivery}}
+    depends_on:
+      kafka-init: {condition: service_completed_successfully}
+      schema-registry: {condition: service_healthy}
+    environment:
+      <<: *java-env
+      OTEL_SERVICE_NAME: delivery-service
+      SPRING_KAFKA_CONSUMER_GROUP_ID: delivery-consumer-group
+      GRPC_CLIENT_TENANT_SERVICE_ADDRESS: static://tenant-service:9090
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/api/v1/delivery/actuator/health >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 40s
+    ports: ["9003:8080"]
+    mem_limit: 448m
+
+  analytics-service:
+    <<: *java-service
+    build: {context: ., args: {SERVICE: analytics-service, PROFILE: analytics}}
+    depends_on:
+      postgres: {condition: service_healthy}
+      kafka-init: {condition: service_completed_successfully}
+      schema-registry: {condition: service_healthy}
+    environment:
+      <<: *java-env
+      OTEL_SERVICE_NAME: analytics-service
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/analytics_db
+      SPRING_DATASOURCE_USERNAME: analytics
+      SPRING_DATASOURCE_PASSWORD: ${ANALYTICS_DB_PASSWORD:-analytics}
+      SPRING_KAFKA_CONSUMER_GROUP_ID: analytics-consumer-group
+      GRPC_CLIENT_TENANT_SERVICE_ADDRESS: static://tenant-service:9090
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/api/v1/analytics/actuator/health >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 40s
+    ports: ["9004:8080"]
+    mem_limit: 448m
+
+  gateway-service:
+    <<: *java-service
+    build: {context: ., args: {SERVICE: gateway-service, PROFILE: gateway}}
+    depends_on:
+      redis-edge: {condition: service_healthy}
+      tenant-service: {condition: service_healthy}
+      notification-service: {condition: service_healthy}
+    environment:
+      <<: *java-env
+      OTEL_SERVICE_NAME: gateway-service
+      SPRING_DATA_REDIS_HOST: redis-edge
+      SPRING_DATA_REDIS_PORT: 6379
+      TENANT_SERVICE_URL: http://tenant-service:8080
+      GRPC_TENANT_SERVICE_ADDRESS: static://tenant-service:9090
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/actuator/health >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 30s
+    ports: ["9000:8080"]
+    mem_limit: 448m
+
+  # ---------------- optional: tools / observability ----------------
+  kafka-ui:
+    profiles: [tools]
+    image: provectuslabs/kafka-ui:latest
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      KAFKA_CLUSTERS_0_SCHEMAREGISTRY: http://schema-registry:8081
+    ports: ["8080:8080"]
+    mem_limit: 384m
+
+  prometheus:
+    profiles: [observability]
+    image: prom/prometheus:v2.55.1
+    volumes: ["./docker/prometheus.yml:/etc/prometheus/prometheus.yml:ro"]
+    ports: ["9090:9090"]
+    mem_limit: 256m
+
+  grafana:
+    profiles: [observability]
+    image: grafana/grafana:11.3.1
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+    ports: ["3000:3000"]
+    mem_limit: 192m
+
+  jaeger:
+    profiles: [observability]
+    image: jaegertracing/all-in-one:1.62.0
+    environment: {COLLECTOR_OTLP_ENABLED: "true"}
+    ports: ["16686:16686"]
+    mem_limit: 192m
+
+  otel-collector:
+    profiles: [observability]
+    image: otel/opentelemetry-collector-contrib:0.113.0
+    command: ["--config=/etc/otel-collector-config.yml"]
+    volumes: ["./config/otel-collector-config.yml:/etc/otel-collector-config.yml:ro"]
+    depends_on: [jaeger]
+    mem_limit: 128m
+
+volumes:
+  kafka_data:
+  pg_data:
+  redis_core_data:
